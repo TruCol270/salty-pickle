@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
+import hmac
+import hashlib
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +10,13 @@ from app.config import get_settings
 from app.models import User
 
 settings = get_settings()
+
+# Whoop sends webhook events for these types
+WHOOP_WEBHOOK_EVENTS = [
+    "recovery.updated",
+    "sleep.updated",
+    "workout.updated",
+]
 
 
 class WhoopService:
@@ -134,3 +143,59 @@ class WhoopService:
             return "easy"
         else:
             return "rest"
+
+    async def register_webhook(self, callback_url: str) -> dict:
+        """Register a webhook subscription with Whoop."""
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.API_BASE}/webhooks",
+                headers={
+                    "Authorization": f"Basic {settings.whoop_client_id}:{settings.whoop_client_secret}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "url": callback_url,
+                    "event_types": WHOOP_WEBHOOK_EVENTS,
+                },
+            )
+            response.raise_for_status()
+            return response.json()
+
+    async def delete_webhook(self, webhook_id: str) -> None:
+        """Delete a webhook subscription."""
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(
+                f"{self.API_BASE}/webhooks/{webhook_id}",
+                headers={
+                    "Authorization": f"Basic {settings.whoop_client_id}:{settings.whoop_client_secret}",
+                },
+            )
+            response.raise_for_status()
+
+    def verify_webhook_signature(self, payload: bytes, signature: str) -> bool:
+        """Verify the webhook payload came from Whoop."""
+        expected = hmac.new(
+            settings.whoop_client_secret.encode(),
+            payload,
+            hashlib.sha256,
+        ).hexdigest()
+        return hmac.compare_digest(f"sha256={expected}", signature)
+
+    def parse_recovery_event(self, payload: dict) -> Optional[dict]:
+        """Parse a Whoop recovery webhook payload into our format."""
+        data = payload.get("data", {})
+        if not data:
+            return None
+
+        score = data.get("score", {})
+        recovery_score = score.get("recovery_score", 0) / 100
+        sleep_performance = score.get("sleep_performance_percentage", 0) / 100
+
+        return {
+            "recovery_score": recovery_score,
+            "sleep_performance": sleep_performance,
+            "resting_heart_rate": score.get("resting_heart_rate"),
+            "hrv_rmssd_milli": score.get("hrv_rmssd_milli"),
+            "cycle_date": data.get("created_at"),
+            "user_id": payload.get("user_id"),
+        }
