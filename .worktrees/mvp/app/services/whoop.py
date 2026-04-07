@@ -20,19 +20,23 @@ WHOOP_WEBHOOK_EVENTS = [
 
 
 class WhoopService:
-    API_BASE = "https://api.whoop.com"
+    AUTH_BASE = "https://api.prod.whoop.com/oauth/oauth2"
+    API_BASE = "https://api.prod.whoop.com/developer/v1"
 
     SCOPES = [
         "read:recovery",
         "read:sleep",
         "read:workout",
         "read:profile",
+        "offline",
     ]
 
     def __init__(self, db: AsyncSession):
         self.db = db
 
     def get_authorization_url(self, state: str) -> str:
+        from urllib.parse import urlencode
+
         params = {
             "client_id": settings.whoop_client_id,
             "redirect_uri": settings.whoop_redirect_uri,
@@ -40,13 +44,12 @@ class WhoopService:
             "scope": " ".join(self.SCOPES),
             "state": state,
         }
-        query_string = "&".join(f"{k}={v}" for k, v in params.items())
-        return f"{self.API_BASE}/oauth/authorize?{query_string}"
+        return f"{self.AUTH_BASE}/auth?{urlencode(params)}"
 
     async def exchange_code_for_token(self, code: str) -> dict:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{self.API_BASE}/oauth/token",
+                f"{self.AUTH_BASE}/token",
                 data={
                     "grant_type": "authorization_code",
                     "client_id": settings.whoop_client_id,
@@ -61,7 +64,7 @@ class WhoopService:
     async def refresh_token(self, refresh_token: str) -> dict:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{self.API_BASE}/oauth/token",
+                f"{self.AUTH_BASE}/token",
                 data={
                     "grant_type": "refresh_token",
                     "client_id": settings.whoop_client_id,
@@ -75,7 +78,7 @@ class WhoopService:
     async def get_current_user(self, access_token: str) -> dict:
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{self.API_BASE}/users /me",
+                f"{self.API_BASE}/user/profile/basic",
                 headers={"Authorization": f"Bearer {access_token}"},
             )
             response.raise_for_status()
@@ -89,11 +92,11 @@ class WhoopService:
     ) -> list[dict]:
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{self.API_BASE}/cycles",
+                f"{self.API_BASE}/cycle",
                 headers={"Authorization": f"Bearer {access_token}"},
                 params={
-                    "start": start.isoformat(),
-                    "end": end.isoformat(),
+                    "start": start.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+                    "end": end.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
                 },
             )
             response.raise_for_status()
@@ -146,11 +149,16 @@ class WhoopService:
 
     async def register_webhook(self, callback_url: str) -> dict:
         """Register a webhook subscription with Whoop."""
+        import base64
+
+        credentials = base64.b64encode(
+            f"{settings.whoop_client_id}:{settings.whoop_client_secret}".encode()
+        ).decode()
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{self.API_BASE}/webhooks",
+                "https://api.prod.whoop.com/webhook/v1",
                 headers={
-                    "Authorization": f"Basic {settings.whoop_client_id}:{settings.whoop_client_secret}",
+                    "Authorization": f"Basic {credentials}",
                     "Content-Type": "application/json",
                 },
                 json={
@@ -163,12 +171,15 @@ class WhoopService:
 
     async def delete_webhook(self, webhook_id: str) -> None:
         """Delete a webhook subscription."""
+        import base64
+
+        credentials = base64.b64encode(
+            f"{settings.whoop_client_id}:{settings.whoop_client_secret}".encode()
+        ).decode()
         async with httpx.AsyncClient() as client:
             response = await client.delete(
-                f"{self.API_BASE}/webhooks/{webhook_id}",
-                headers={
-                    "Authorization": f"Basic {settings.whoop_client_id}:{settings.whoop_client_secret}",
-                },
+                f"https://api.prod.whoop.com/webhook/v1/{webhook_id}",
+                headers={"Authorization": f"Basic {credentials}"},
             )
             response.raise_for_status()
 
