@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 from app.config import get_settings
 from app.database import init_db
@@ -55,3 +56,108 @@ app.include_router(whoop.router, prefix="/api/v1/whoop", tags=["whoop"])
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_policy():
+    return HTMLResponse(content=PRIVACY_POLICY_HTML)
+
+
+@app.get("/redirect", response_class=HTMLResponse)
+async def oauth_redirect():
+    return HTMLResponse(content=REDIRECT_HTML)
+
+
+PRIVACY_POLICY_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy – Salty Pickle</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 24px; color: #1a1a1a; line-height: 1.7; }
+    h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+    h2 { font-size: 1.25rem; font-weight: 600; margin-top: 36px; }
+    p, li { color: #444; }
+    ul { padding-left: 24px; }
+    .updated { color: #888; font-size: 0.9rem; margin-bottom: 32px; }
+    a { color: #4f46e5; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: April 2026</p>
+
+  <p>Salty Pickle ("we", "us", or "our") is a personal training plan scheduler that connects
+  to Strava, Google Calendar, and Whoop to help you train smarter. This policy explains what
+  data we collect and how we use it.</p>
+
+  <h2>1. Data We Collect</h2>
+  <ul>
+    <li><strong>Strava:</strong> Athlete ID, completed activity data (distance, duration, heart rate, pace)</li>
+    <li><strong>Google:</strong> Email address, Google Calendar access to create and manage training events</li>
+    <li><strong>Whoop:</strong> Recovery scores, sleep performance, resting heart rate, HRV</li>
+    <li><strong>You provide:</strong> Race goals, fitness level, training preferences, injury history</li>
+  </ul>
+
+  <h2>2. How We Use Your Data</h2>
+  <ul>
+    <li>Generate personalized training plans based on your fitness history and goals</li>
+    <li>Sync training workouts to your Google Calendar</li>
+    <li>Cross-reference completed workouts with your plan to track progress</li>
+    <li>Adjust your plan based on Whoop recovery scores</li>
+    <li>Improve future plan recommendations</li>
+  </ul>
+
+  <h2>3. Data Storage</h2>
+  <p>Your data is stored in a private PostgreSQL database. OAuth tokens are stored securely
+  and used only to access the services you have connected. We do not sell or share your
+  data with third parties.</p>
+
+  <h2>4. Third-Party Services</h2>
+  <p>We integrate with:</p>
+  <ul>
+    <li><a href="https://www.strava.com/legal/privacy">Strava Privacy Policy</a></li>
+    <li><a href="https://policies.google.com/privacy">Google Privacy Policy</a></li>
+    <li><a href="https://www.whoop.com/privacy/">Whoop Privacy Policy</a></li>
+  </ul>
+
+  <h2>5. Revoking Access</h2>
+  <p>You can disconnect any integration at any time:</p>
+  <ul>
+    <li><strong>Strava:</strong> <a href="https://www.strava.com/settings/apps">strava.com/settings/apps</a></li>
+    <li><strong>Google:</strong> <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a></li>
+    <li><strong>Whoop:</strong> via Whoop app settings</li>
+  </ul>
+
+  <h2>6. Contact</h2>
+  <p>Questions? Open an issue on <a href="https://github.com/TruCol270/salty-pickle">GitHub</a>.</p>
+</body>
+</html>"""
+
+
+REDIRECT_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connected – Salty Pickle</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f0f4ff; }
+    .card { background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); padding: 48px; text-align: center; max-width: 420px; width: 100%; }
+    .icon { font-size: 3rem; margin-bottom: 16px; }
+    h1 { font-size: 1.5rem; font-weight: 700; color: #1a1a1a; margin: 0 0 8px; }
+    p { color: #666; margin: 0 0 24px; }
+    a { display: inline-block; background: #4f46e5; color: white; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; }
+    a:hover { background: #4338ca; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">✅</div>
+    <h1>Connected!</h1>
+    <p>Your account has been successfully connected to Salty Pickle.</p>
+    <a href="http://localhost:3000">Go to Dashboard</a>
+  </div>
+</body>
+</html>"""
