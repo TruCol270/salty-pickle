@@ -7,10 +7,12 @@ An AI-powered ultra/trail running training plan scheduler that automatically syn
 ### Core Functionality
 - **Strava Integration** - Connect your Strava account to automatically sync completed workouts
 - **Google Calendar** - Training plans automatically sync to your calendar
+- **Whoop Integration** - Connect Whoop for recovery-based training adjustments
 - **AI Plan Generation** - Generate personalized training plans based on your race goals
 - **Race URL Analysis** - Paste a race webpage URL to auto-extract race details (distance, elevation, difficulty)
 - **Auto-Adjustment** - Missed workouts automatically reschedule to keep you on track
 - **Performance-Based Updates** - Plan adjusts based on how well you're performing
+- **Recovery-Aware Planning** - Plan adjusts based on Whoop recovery scores
 
 ### User Preferences
 - Preferred workout days
@@ -38,8 +40,8 @@ An AI-powered ultra/trail running training plan scheduler that automatically syn
     ┌──────────────────────┼──────────────────────┐
     │                      │                      │
 ┌───▼────┐  ┌─────────────▼┐  ┌────────────────▼──┐
-│ Strava │  │   Google     │  │  LLM (GPT-4o)     │
-│  API   │  │  Calendar    │  │  Plan Generator   │
+│ Strava │  │   Google     │  │  Whoop API       │
+│  API   │  │  Calendar    │  │  (Recovery)      │
 └────────┘  └──────────────┘  └────────────────────┘
     │            │                    │
     ▼            ▼                    ▼

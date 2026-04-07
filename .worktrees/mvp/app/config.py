@@ -26,7 +26,11 @@ class Settings(BaseSettings):
     allowed_origins: list[str] = ["http://localhost:3000"]
 
     gcp_project_id: str = ""
-    gcp_region: str = "us-central1"
+    gcp_region: str = ""
+
+    whoop_client_id: str = ""
+    whoop_client_secret: str = ""
+    whoop_redirect_uri: str = "http://localhost:8000/auth/whoop/callback"
 
 
 @lru_cache

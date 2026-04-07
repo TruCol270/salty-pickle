@@ -10,6 +10,7 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models import User, OAuthState
 from app.services.strava import StravaService
+from app.services.whoop import WhoopService
 from app.config import get_settings
 
 settings = get_settings()
@@ -164,3 +165,64 @@ async def google_callback(
     await db.commit()
 
     return {"user_id": user.id, "message": "Google Calendar connected successfully"}
+
+
+@router.get("/whoop/authorize")
+async def whoop_authorize(
+    db: AsyncSession = Depends(get_db),
+):
+    state = generate_state()
+
+    oauth_state = OAuthState(
+        state=state,
+        provider="whoop",
+        expires_at=datetime.utcnow() + timedelta(minutes=10),
+    )
+    db.add(oauth_state)
+    await db.commit()
+
+    service = WhoopService(db)
+    auth_url = service.get_authorization_url(state=state)
+
+    html = f"""<!DOCTYPE html>
+<html>
+<head><title>Whoop Authorization</title></head>
+<body>
+<h1>Connect Whoop</h1>
+<p>Click the link below to authorize:</p>
+<p><a href="{auth_url}">Authorize with Whoop</a></p>
+</body>
+</html>"""
+    return HTMLResponse(content=html)
+
+
+@router.get("/whoop/callback")
+async def whoop_callback(
+    code: str = Query(...),
+    state: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(OAuthState).where(OAuthState.state == state))
+    oauth_state = result.scalar_one_or_none()
+
+    if not oauth_state or oauth_state.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Invalid or expired state")
+
+    service = WhoopService(db)
+    tokens = await service.exchange_code_for_token(code)
+
+    result = await db.execute(select(User))
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="No user found")
+
+    user.whoop_access_token = tokens.get("access_token")
+    user.whoop_refresh_token = tokens.get("refresh_token")
+
+    await db.commit()
+
+    await db.delete(oauth_state)
+    await db.commit()
+
+    return {"user_id": user.id, "message": "Whoop connected successfully"}

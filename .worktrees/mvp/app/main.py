@@ -5,7 +5,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database import init_db
-from app.api import auth, workouts, plans, calendar, analytics, preferences, races
+from app.api import (
+    auth,
+    workouts,
+    plans,
+    calendar,
+    analytics,
+    preferences,
+    races,
+    whoop,
+)
 from app.scheduler.jobs import setup_scheduler, shutdown_scheduler
 
 settings = get_settings()
@@ -40,6 +49,7 @@ app.include_router(calendar.router, prefix="/api/v1/calendar", tags=["calendar"]
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
 app.include_router(preferences.router, prefix="/api/v1/user", tags=["user"])
 app.include_router(races.router, prefix="/api/v1/races", tags=["races"])
+app.include_router(whoop.router, prefix="/api/v1/whoop", tags=["whoop"])
 
 
 @app.get("/health")

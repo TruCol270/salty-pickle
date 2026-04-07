@@ -35,6 +35,8 @@ class User(Base):
 
     whoop_user_id = Column(String, nullable=True)
     whoop_access_token = Column(String, nullable=True)
+    whoop_refresh_token = Column(String, nullable=True)
+    whoop_token_expires_at = Column(DateTime, nullable=True)
 
     tenant_id = Column(String, nullable=True, index=True)
 

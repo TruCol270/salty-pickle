@@ -6,6 +6,7 @@ from sqlalchemy import select, and_, false
 
 from app.models import User, TrainingPlan, PlannedWorkout, CompletedWorkout, PlanStatus
 from app.services.google_calendar import GoogleCalendarService
+from app.services.whoop import WhoopService
 
 
 class PerformanceAnalyzer:
@@ -240,7 +241,7 @@ class PerformanceAnalyzer:
             completed = match["completed"]
 
             planned.completed_workout = completed
-            planned.completed = True
+            planned.completed = "true"
 
             score = await self.calculate_performance_score(planned, completed)
             if score:
@@ -252,9 +253,26 @@ class PerformanceAnalyzer:
 
         adjustments = await self.adjust_plan_based_on_performance(user, matches)
 
+        whoop_recovery = None
+        if user.whoop_access_token:
+            try:
+                whoop_service = WhoopService(self.db)
+                whoop_recovery = await whoop_service.get_latest_recovery(user)
+            except Exception as e:
+                print(f"Failed to get Whoop recovery: {e}")
+
+        recovery_recommendation = "maintain"
+        if whoop_recovery:
+            whoop_service = WhoopService(self.db)
+            recovery_recommendation = await whoop_service.get_recovery_recommendation(
+                whoop_recovery
+            )
+
         return {
             "synced": len(synced),
             "matched": len(matches),
             "adjustments": len(adjustments),
+            "whoop_recovery": whoop_recovery,
+            "recovery_recommendation": recovery_recommendation,
             "details": adjustments,
         }
