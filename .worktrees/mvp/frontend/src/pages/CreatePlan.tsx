@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import axios from 'axios';
-import { Flag, Calendar, MapPin, Target, Loader2 } from 'lucide-react';
+import { Flag, Calendar, MapPin, Target, Loader2, Link as LinkIcon, Settings } from 'lucide-react';
 
 interface RaceFormData {
   race_name: string;
@@ -11,6 +11,23 @@ interface RaceFormData {
   current_fitness_level: string;
   weekly_mileage_km: number;
   years_experience: string;
+  race_url?: string;
+}
+
+interface RaceAnalysis {
+  race_info: {
+    race_name: string;
+    race_date: string;
+    distance_km: number;
+    elevation_gain_m: number;
+    difficulty: string;
+    location: string;
+  };
+  training_advice: {
+    weekly_long_run_max_km: number;
+    weekly_volume_cap_km: number;
+    key_workouts: string[];
+  };
 }
 
 export function CreatePlan() {
@@ -22,17 +39,59 @@ export function CreatePlan() {
     current_fitness_level: 'intermediate',
     weekly_mileage_km: 30,
     years_experience: '3-5',
+    race_url: '',
+  });
+
+  const [raceAnalysis, setRaceAnalysis] = useState<RaceAnalysis | null>(null);
+  const [analyzingUrl, setAnalyzingUrl] = useState(false);
+
+  const analyzeUrl = useMutation({
+    mutationFn: async (url: string) => {
+      const response = await axios.post(`/api/v1/races/analyze?url=${encodeURIComponent(url)}`);
+      return response.data;
+    },
+    onSuccess: (data: RaceAnalysis) => {
+      setRaceAnalysis(data);
+      if (data.race_info.race_name) {
+        setFormData(prev => ({ ...prev, race_name: data.race_info.race_name }));
+      }
+      if (data.race_info.distance_km) {
+        setFormData(prev => ({ ...prev, race_distance_km: data.race_info.distance_km }));
+      }
+      if (data.race_info.race_date) {
+        const date = new Date(data.race_info.race_date);
+        setFormData(prev => ({ ...prev, race_date: date.toISOString().split('T')[0] }));
+      }
+    },
+    onError: () => {
+      setRaceAnalysis(null);
+    },
   });
 
   const createPlan = useMutation({
     mutationFn: async (data: RaceFormData) => {
-      const response = await axios.post('/api/v1/plans/ai-generate', data);
+      const planData = {
+        race_name: data.race_name,
+        race_date: data.race_date ? `${data.race_date}T00:00:00` : null,
+        race_distance_km: data.race_distance_km,
+        current_fitness_level: data.current_fitness_level,
+        weekly_mileage_km: data.weekly_mileage_km,
+        years_experience: data.years_experience,
+      };
+      const response = await axios.post('/api/v1/plans/ai-generate', planData);
       return response.data;
     },
     onSuccess: (data) => {
       navigate(`/plans/${data.plan_id}`);
     },
   });
+
+  const handleAnalyzeUrl = () => {
+    if (formData.race_url) {
+      setAnalyzingUrl(true);
+      analyzeUrl.mutate(formData.race_url);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,19 +100,64 @@ export function CreatePlan() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="p-3 bg-indigo-100 rounded-xl">
-              <Flag className="w-8 h-8 text-indigo-600" />
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-indigo-100 rounded-xl">
+                <Flag className="w-8 h-8 text-indigo-600" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Create Training Plan</h1>
+                <p className="text-gray-500">Tell us about your goal race</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Create Training Plan</h1>
-              <p className="text-gray-500">Tell us about your goal race</p>
-            </div>
+            <Link
+              to="/preferences"
+              className="flex items-center gap-2 text-gray-500 hover:text-gray-700"
+            >
+              <Settings className="w-5 h-5" />
+              <span className="text-sm">Preferences</span>
+            </Link>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="bg-blue-50 rounded-lg p-4">
+              <label className="block text-sm font-medium text-blue-800 mb-2">
+                <LinkIcon className="w-4 h-4 inline mr-1" />
+                Have a race URL? Paste it here to auto-fill details
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={formData.race_url || ''}
+                  onChange={(e) => setFormData({ ...formData, race_url: e.target.value })}
+                  placeholder="e.g., https://www.utmbmontblanc.com/en/utmb"
+                  className="flex-1 px-4 py-3 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleAnalyzeUrl}
+                  disabled={analyzingUrl || !formData.race_url}
+                  className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50"
+                >
+                  {analyzingUrl ? 'Analyzing...' : 'Analyze'}
+                </button>
+              </div>
+              {raceAnalysis && (
+                <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                  <p className="text-sm text-green-800 font-medium">
+                    ✓ Found: {raceAnalysis.race_info.race_name} ({raceAnalysis.race_info.distance_km}km, {raceAnalysis.race_info.difficulty} difficulty)
+                  </p>
+                  {raceAnalysis.race_info.elevation_gain_m && (
+                    <p className="text-xs text-green-700">
+                      Elevation: {raceAnalysis.race_info.elevation_gain_m}m
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -179,7 +283,7 @@ export function CreatePlan() {
 
             {createPlan.isError && (
               <div className="bg-red-50 text-red-600 p-4 rounded-lg text-sm">
-                Failed to generate plan. Please try again.
+                Failed to generate plan. Please try again. (Check if OpenAI API key has quota)
               </div>
             )}
           </form>
