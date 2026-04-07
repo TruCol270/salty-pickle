@@ -21,12 +21,13 @@ WHOOP_WEBHOOK_EVENTS = [
 
 class WhoopService:
     AUTH_BASE = "https://api.prod.whoop.com/oauth/oauth2"
-    API_BASE = "https://api.prod.whoop.com/developer/v1"
+    API_BASE = "https://api.prod.whoop.com/developer/v2"
 
     SCOPES = [
         "read:recovery",
-        "read:sleep",
+        "read:cycles",
         "read:workout",
+        "read:sleep",
         "read:profile",
         "offline",
     ]
@@ -92,11 +93,12 @@ class WhoopService:
     ) -> list[dict]:
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{self.API_BASE}/cycle",
+                f"{self.API_BASE}/recovery",
                 headers={"Authorization": f"Bearer {access_token}"},
                 params={
                     "start": start.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
                     "end": end.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+                    "limit": 1,
                 },
             )
             response.raise_for_status()
@@ -108,23 +110,23 @@ class WhoopService:
             return None
 
         try:
-            cycles = await self.get_recovery(
+            records = await self.get_recovery(
                 user.whoop_access_token,
                 datetime.utcnow() - timedelta(days=7),
                 datetime.utcnow(),
             )
 
-            if cycles:
-                latest = cycles[0]
+            if records:
+                latest = records[0]
+                score = latest.get("score", {})
                 return {
-                    "recovery_score": latest.get("recovery_score", 0) / 100,
-                    "sleep_performance": latest.get("sleep_performance", 0) / 100,
-                    "hsr": latest.get("hsr", 0) / 100,
-                    "systolic_blood_pressure": latest.get("systolic_blood_pressure"),
-                    "diastolic_blood_pressure": latest.get("diastolic_blood_pressure"),
-                    "resting_heart_rate": latest.get("resting_heart_rate"),
-                    "sleep_hours": latest.get("sleep_hours"),
-                    "cycle_date": latest.get("created_at"),
+                    "recovery_score": score.get("recovery_score", 0) / 100,
+                    "resting_heart_rate": score.get("resting_heart_rate"),
+                    "hrv_rmssd_milli": score.get("hrv_rmssd_milli"),
+                    "spo2_percentage": score.get("spo2_percentage"),
+                    "skin_temp_celsius": score.get("skin_temp_celsius"),
+                    "cycle_id": latest.get("cycle_id"),
+                    "created_at": latest.get("created_at"),
                 }
         except Exception as e:
             print(f"Failed to get Whoop recovery: {e}")
@@ -135,10 +137,10 @@ class WhoopService:
         if not recovery_data:
             return "maintain"
 
+        # recovery_score is 0.0-1.0 (already divided by 100)
         recovery_score = recovery_data.get("recovery_score", 0.5)
-        sleep_performance = recovery_data.get("sleep_performance", 0.5)
 
-        if recovery_score >= 0.66 and sleep_performance >= 0.66:
+        if recovery_score >= 0.66:
             return "push"
         elif recovery_score >= 0.33:
             return "maintain"
