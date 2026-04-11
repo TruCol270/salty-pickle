@@ -1,11 +1,20 @@
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
+from sqlalchemy import text
 
 from app.config import get_settings
-from app.database import init_db
+from app.database import AsyncSessionLocal, init_db
+from app.exceptions import (
+    IntegrationError,
+    ResourceNotFoundError,
+    SaltyPickleError,
+    ValidationError,
+)
 from app.api import (
     auth,
     workouts,
@@ -17,6 +26,8 @@ from app.api import (
     whoop,
 )
 from app.scheduler.jobs import setup_scheduler, shutdown_scheduler
+
+logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
@@ -51,6 +62,57 @@ app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytic
 app.include_router(preferences.router, prefix="/api/v1/user", tags=["user"])
 app.include_router(races.router, prefix="/api/v1/races", tags=["races"])
 app.include_router(whoop.router, prefix="/api/v1/whoop", tags=["whoop"])
+
+_ERROR_CODE_MAP = {
+    ResourceNotFoundError: ("not_found", 404),
+    IntegrationError: ("integration_error", 502),
+    ValidationError: ("validation_error", 422),
+    SaltyPickleError: ("server_error", 500),
+}
+
+
+@app.exception_handler(SaltyPickleError)
+async def salty_pickle_error_handler(request: Request, exc: SaltyPickleError):
+    code, status = _ERROR_CODE_MAP.get(type(exc), ("server_error", 500))
+    return JSONResponse(
+        status_code=status,
+        content={"error": {"code": code, "message": exc.message, "details": exc.details}},
+    )
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    return JSONResponse(
+        status_code=422,
+        content={"error": {"code": "validation_error", "message": str(exc), "details": None}},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_error_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    first = errors[0] if errors else {}
+    message = first.get("msg", "Validation error")
+    return JSONResponse(
+        status_code=422,
+        content={"error": {"code": "validation_error", "message": message, "details": errors}},
+    )
+
+
+@app.get("/live")
+async def liveness():
+    return {"status": "alive"}
+
+
+@app.get("/healthz")
+async def readiness():
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        return {"status": "ready", "db": "ok"}
+    except Exception:
+        logger.exception("Healthz DB check failed")
+        return JSONResponse(status_code=503, content={"status": "degraded", "db": "error"})
 
 
 @app.get("/health")
