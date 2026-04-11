@@ -144,30 +144,3 @@ class CalendarSyncService:
         except Exception as e:
             print(f"Failed to update calendar event: {e}")
             return None
-
-        plan = workout.plan
-
-        duration_hours = 1
-        if workout.workout_type == "long":
-            duration_hours = 2 + (workout.target_distance_km or 0) / 10
-
-        end_time = workout.scheduled_date + timedelta(hours=duration_hours)
-
-        distance_str = (
-            f" {workout.target_distance_km:.1f}km" if workout.target_distance_km else ""
-        )
-        summary = f"🏃 {workout.workout_type.title()}{distance_str}"
-
-        try:
-            event = await self.calendar_service.update_event(
-                user=user,
-                event_id=workout.calendar_event_id,
-                summary=summary,
-                description=f"Updated workout from {plan.name}\nWorkout ID: {workout.id}",
-                start_time=workout.scheduled_date,
-                end_time=end_time,
-            )
-            return event
-        except Exception as e:
-            print(f"Failed to update calendar event: {e}")
-            return None

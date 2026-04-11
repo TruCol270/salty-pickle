@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -42,6 +43,3 @@ async def analyze_race_url(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to analyze race: {str(e)}")
-
-
-from datetime import datetime

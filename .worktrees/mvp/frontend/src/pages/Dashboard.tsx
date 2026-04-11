@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
-import { Calendar, TrendingUp, Activity, Plus, Flag } from 'lucide-react';
+import api from '../lib/api';
+import { Calendar, TrendingUp, Activity, Plus } from 'lucide-react';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import type { WorkoutStats } from '../types';
 
 interface PlanProgress {
   plan_name: string;
@@ -12,37 +14,44 @@ interface PlanProgress {
   planned_distance_km: number;
 }
 
-interface PerformanceMetrics {
-  total_workouts: number;
-  total_distance_km: number;
-  average_pace: number | null;
-  workouts_by_type: Record<string, number>;
-  weekly_distances: { week: string; distance_km: number }[];
-}
-
 export function Dashboard() {
-  const { data: planProgress, isLoading: planLoading } = useQuery<PlanProgress>({
+  const { data: planProgress, isLoading: planLoading, isError: planError } = useQuery<PlanProgress>({
     queryKey: ['planProgress'],
     queryFn: async () => {
-      const response = await axios.get('/api/v1/plans/active');
+      const response = await api.get('/api/v1/plans/active');
       const planId = response.data.id;
-      const progress = await axios.get(`/api/v1/analytics/plan-progress/${planId}`);
+      const progress = await api.get(`/api/v1/analytics/plan-progress/${planId}`);
       return progress.data;
     },
-    retry: false,
   });
 
-  const { data: performance, isLoading: perfLoading } = useQuery<PerformanceMetrics>({
+  const { data: performance, isLoading: perfLoading, isError: perfError } = useQuery<WorkoutStats>({
     queryKey: ['performance'],
     queryFn: async () => {
-      const response = await axios.get('/api/v1/analytics/performance');
+      const response = await api.get('/api/v1/analytics/performance');
       return response.data;
     },
-    retry: false,
   });
 
   if (planLoading || perfLoading) {
-    return <div className="p-8">Loading...</div>;
+    return <LoadingSpinner size="lg" className="min-h-screen" />;
+  }
+
+  if (planError || perfError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-8">
+        <div className="bg-white rounded-lg shadow p-8 max-w-md text-center">
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to load dashboard</h2>
+          <p className="text-gray-500 mb-4">Could not fetch training data. Please try again later.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

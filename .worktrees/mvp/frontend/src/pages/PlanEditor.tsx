@@ -1,39 +1,47 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import api from '../lib/api';
 import { format, differenceInDays } from 'date-fns';
-
-interface Workout {
-  id: number;
-  week_number: number;
-  day_of_week: number;
-  workout_type: string;
-  target_distance_km: number | null;
-  scheduled_date: string;
-  completed: boolean;
-}
-
-interface Plan {
-  id: number;
-  name: string;
-  start_date: string;
-  end_date: string;
-  workouts: Workout[];
-}
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import type { TrainingPlan } from '../types';
 
 export function PlanEditor() {
   const { id } = useParams<{ id: string }>();
+  const [syncStatus, setSyncStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const { data: plan, isLoading } = useQuery<Plan>({
+  const { data: plan, isLoading, isError } = useQuery<TrainingPlan>({
     queryKey: ['plan', id],
     queryFn: async () => {
-      const response = await axios.get(`/api/v1/plans/${id}`);
+      const response = await api.get(`/api/v1/plans/${id}`);
       return response.data;
     },
   });
 
-  if (isLoading) return <div className="p-8">Loading...</div>;
-  if (!plan) return <div className="p-8">Plan not found</div>;
+  const syncCalendar = useMutation({
+    mutationFn: async () => {
+      const response = await api.post(`/api/v1/calendar/sync?plan_id=${id}`);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setSyncStatus({ type: 'success', message: `Synced ${data.synced_count} workouts to Google Calendar` });
+    },
+    onError: (err: { message: string }) => {
+      setSyncStatus({ type: 'error', message: err.message || 'Failed to sync to calendar' });
+    },
+  });
+
+  if (isLoading) return <LoadingSpinner size="lg" className="min-h-screen" />;
+  if (isError || !plan) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-8">
+        <div className="bg-white rounded-lg shadow p-8 max-w-md text-center">
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Plan not found</h2>
+          <p className="text-gray-500">Unable to load this training plan.</p>
+        </div>
+      </div>
+    );
+  }
 
   const weeks = Math.ceil(differenceInDays(new Date(plan.end_date), new Date(plan.start_date)) / 7);
 
@@ -47,10 +55,24 @@ export function PlanEditor() {
               {format(new Date(plan.start_date), 'MMM d, yyyy')} - {format(new Date(plan.end_date), 'MMM d, yyyy')}
             </p>
           </div>
-          <button className="px-4 py-2 bg-blue-500 text-white rounded-lg">
-            Sync to Calendar
+          <button
+            onClick={() => { setSyncStatus(null); syncCalendar.mutate(); }}
+            disabled={syncCalendar.isPending}
+            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 transition-colors"
+          >
+            {syncCalendar.isPending ? 'Syncing...' : 'Sync to Calendar'}
           </button>
         </div>
+
+        {syncStatus && (
+          <div className={`mb-4 p-3 rounded-lg text-sm ${
+            syncStatus.type === 'success'
+              ? 'bg-green-50 text-green-800 border border-green-200'
+              : 'bg-red-50 text-red-800 border border-red-200'
+          }`}>
+            {syncStatus.message}
+          </div>
+        )}
 
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="w-full">
