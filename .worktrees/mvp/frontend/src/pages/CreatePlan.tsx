@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import axios from 'axios';
+import api from '../lib/api';
 import { Flag, Calendar, MapPin, Target, Loader2, Link as LinkIcon, Settings } from 'lucide-react';
 
 interface RaceFormData {
@@ -47,7 +47,7 @@ export function CreatePlan() {
 
   const analyzeUrl = useMutation({
     mutationFn: async (url: string) => {
-      const response = await axios.post(`/api/v1/races/analyze?url=${encodeURIComponent(url)}`);
+      const response = await api.post(`/api/v1/races/analyze?url=${encodeURIComponent(url)}`);
       return response.data;
     },
     onSuccess: (data: RaceAnalysis) => {
@@ -78,7 +78,7 @@ export function CreatePlan() {
         weekly_mileage_km: data.weekly_mileage_km,
         years_experience: data.years_experience,
       };
-      const response = await axios.post('/api/v1/plans/ai-generate', planData);
+      const response = await api.post('/api/v1/plans/ai-generate', planData);
       return response.data;
     },
     onSuccess: (data) => {
