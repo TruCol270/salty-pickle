@@ -18,6 +18,34 @@ steps:
       - './frontend'
 
   - name: 'gcr.io/cloud-builders/docker'
+    id: verify-api-image-size
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        SIZE=$(docker image inspect gcr.io/$PROJECT_ID/salty-pickle-api:$COMMIT_SHA --format='{{.Size}}')
+        SIZE_MB=$((SIZE / 1024 / 1024))
+        echo "API image size: $${SIZE_MB}MB"
+        if [ "$$SIZE_MB" -gt 500 ]; then
+          echo "ERROR: API image exceeds 500MB limit"
+          exit 1
+        fi
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: verify-frontend-image-size
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        SIZE=$(docker image inspect gcr.io/$PROJECT_ID/salty-pickle-frontend:$COMMIT_SHA --format='{{.Size}}')
+        SIZE_MB=$((SIZE / 1024 / 1024))
+        echo "Frontend image size: $${SIZE_MB}MB"
+        if [ "$$SIZE_MB" -gt 100 ]; then
+          echo "ERROR: Frontend image exceeds 100MB limit"
+          exit 1
+        fi
+
+  - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
       - 'gcr.io/$PROJECT_ID/salty-pickle-api:$COMMIT_SHA'

@@ -1,4 +1,4 @@
-.PHONY: dev build test lint migrate db-reset
+.PHONY: dev build test lint migrate db-reset run audit-backend audit-frontend audit
 
 dev:
 	docker-compose up
@@ -20,3 +20,11 @@ db-reset:
 
 run:
 	docker-compose up api
+
+audit-backend:
+	docker-compose run api pip install bandit && docker-compose run api bandit -r app/ -ll
+
+audit-frontend:
+	cd frontend && npm audit
+
+audit: audit-backend audit-frontend

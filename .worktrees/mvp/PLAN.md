@@ -13,9 +13,9 @@ _Approved via ultraplan browser session. Save this file to resume work if sessio
 - [x] **Phase 1E** — Frontend page fixes (loading states, error states, mock data removal, sync handler)
 - [ ] **Phase 2** — Design system (PENDING Figma mockup approval)
 - [ ] **Phase 3** — Page redesigns (PENDING Phase 2 approval)
-- [ ] **Phase 4** — Backend optimization (Redis caching, rate limiting, structlog)
-- [ ] **Phase 5** — DevOps improvements (multi-stage Docker, CI improvements)
-- [ ] **Phase 6** — Polish & launch
+- [x] **Phase 4** — Backend optimization (Redis caching, rate limiting, structlog)
+- [x] **Phase 5** — DevOps improvements (multi-stage Docker, CI improvements)
+- [x] **Phase 6** — Polish & launch (audit tooling added; Lighthouse & UAT require live environment)
 
 ---
 
