@@ -1,0 +1,33 @@
+---
+description: How to use the bundled .claude-skills library (200+ skills from Claude Code)
+alwaysApply: false
+---
+
+# Claude skills library (`.claude-skills/`)
+
+This repo includes **189 files** across **~139 skill folders** copied from Claude Code (`commit d281d41`). Each skill is a folder with a **`SKILL.md`** (YAML frontmatter: `name`, `description`, sometimes `origin`).
+
+## When to use
+
+- When the user asks for a **named workflow** (e.g. `gsd-*`, `tdd-workflow`, `python-patterns`).
+- When a task matches a skill **description** in `SKILL.md` (search under `.claude-skills/<skill-name>/`).
+
+## How to apply in Cursor
+
+1. **Resolve the skill**: `find .claude-skills -maxdepth 2 -name 'SKILL.md' | xargs grep -l 'keyword'` or open `.claude-skills/<folder>/SKILL.md`.
+2. **Read** the full `SKILL.md` for that skill before large changes.
+3. **Follow** its steps, scripts, and constraints; cite the skill **name** in commits/PRs when relevant.
+
+## Layout (high level)
+
+| Area | Example folders |
+|------|------------------|
+| GSD (structured dev) | `gsd-do`, `gsd-debug`, `gsd-code-review`, `gsd-execute-phase`, … |
+| Language patterns | `python-patterns`, `golang-patterns`, `kotlin-patterns`, `django-patterns`, … |
+| Testing | `tdd-workflow`, `python-testing`, `e2e-testing`, `ai-regression-testing`, … |
+| Frontend | `frontend-patterns`, `coding-standards`, … |
+| Learned / project-specific | `learned/` (ClawTrader-related instincts) |
+
+## Note
+
+These files are **reference material**. Cursor account “Skills” UI is separate; this directory makes the **same content** available in-repo for Agent and search.
