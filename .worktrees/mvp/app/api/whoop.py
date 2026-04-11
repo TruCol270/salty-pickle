@@ -153,7 +153,7 @@ async def _handle_recovery_event(payload: dict, user: User, db: AsyncSession):
             .where(
                 and_(
                     PlannedWorkout.plan_id == plan.id,
-                    PlannedWorkout.completed == "false",
+                    PlannedWorkout.completed == False,
                 )
             )
             .order_by(PlannedWorkout.scheduled_date)

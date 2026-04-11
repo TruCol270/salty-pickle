@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey
+from sqlalchemy import Boolean, Column, String, Integer, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -35,7 +35,7 @@ class AdjustmentLog(Base):
     old_plan_snapshot = Column(Text, nullable=True)
     new_plan_snapshot = Column(Text, nullable=True)
 
-    applied = Column(String, default="false")
+    applied = Column(Boolean, default=False)
     applied_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)

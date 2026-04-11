@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.cache import cache_get, cache_set
 from app.database import get_db
 from app.models import User
 from app.services.analytics import AnalyticsService
@@ -15,6 +16,11 @@ async def get_performance_trends(
     days: int = Query(default=30, le=90),
     db: AsyncSession = Depends(get_db),
 ):
+    cache_key = f"performance_trends:{days}"
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     result = await db.execute(select(User))
     user = result.scalars().first()
 
@@ -22,7 +28,9 @@ async def get_performance_trends(
         return {"error": "No user found"}
 
     service = AnalyticsService(db)
-    return await service.get_performance_trends(user.id, days=days)
+    data = await service.get_performance_trends(user.id, days=days)
+    await cache_set(cache_key, data, ttl=120)
+    return data
 
 
 @router.get("/plan-progress/{plan_id}")

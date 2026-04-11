@@ -16,6 +16,8 @@ from app.config import get_settings
 settings = get_settings()
 router = APIRouter()
 
+OAUTH_STATE_TTL_MINUTES = 15
+
 
 def generate_state() -> str:
     random_bytes = secrets.token_bytes(32)
@@ -33,7 +35,7 @@ async def strava_authorize(
         state=state,
         provider="strava",
         redirect_url=redirect_url,
-        expires_at=datetime.utcnow() + timedelta(minutes=10),
+        expires_at=datetime.utcnow() + timedelta(minutes=OAUTH_STATE_TTL_MINUTES),
     )
     db.add(oauth_state)
     await db.commit()
@@ -107,7 +109,7 @@ async def google_authorize(
         state=state,
         provider="google",
         redirect_url=redirect_url,
-        expires_at=datetime.utcnow() + timedelta(minutes=10),
+        expires_at=datetime.utcnow() + timedelta(minutes=OAUTH_STATE_TTL_MINUTES),
     )
     db.add(oauth_state)
     await db.commit()
@@ -176,7 +178,7 @@ async def whoop_authorize(
     oauth_state = OAuthState(
         state=state,
         provider="whoop",
-        expires_at=datetime.utcnow() + timedelta(minutes=10),
+        expires_at=datetime.utcnow() + timedelta(minutes=OAUTH_STATE_TTL_MINUTES),
     )
     db.add(oauth_state)
     await db.commit()

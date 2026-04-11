@@ -86,7 +86,7 @@ class WorkoutAdjustmentAgent:
             reason=f"Workout missed on {old_date.strftime('%Y-%m-%d')}. Shifted to {new_date.strftime('%Y-%m-%d')}",
             old_plan_snapshot=old_snapshot,
             new_plan_snapshot=await self.plan_engine.get_plan_snapshot(plan.id),
-            applied="true",
+            applied=True,
             applied_at=datetime.utcnow(),
         )
         self.db.add(adjustment)
@@ -134,7 +134,7 @@ class WorkoutAdjustmentAgent:
             reason=f"Recovery score below threshold. Changed {old_type} to recovery.",
             old_plan_snapshot=old_snapshot,
             new_plan_snapshot=await self.plan_engine.get_plan_snapshot(workout.plan_id),
-            applied="true",
+            applied=True,
             applied_at=datetime.utcnow(),
         )
         self.db.add(adjustment)

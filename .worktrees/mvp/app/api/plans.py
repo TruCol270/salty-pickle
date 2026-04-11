@@ -15,6 +15,7 @@ from app.schemas.plan import (
     AIGenerateRequest,
     AIGenerateResponse,
 )
+from app.cache import cache_get, cache_set, cache_delete
 from app.services.plan_engine import PlanEngineService
 from app.agents.adjustment_agent import WorkoutAdjustmentAgent
 from app.agents.plan_generator import PlanGeneratorAgent
@@ -63,6 +64,10 @@ async def create_plan(
 async def get_active_plan(
     db: AsyncSession = Depends(get_db),
 ):
+    cached = await cache_get("active_plan")
+    if cached is not None:
+        return cached
+
     result = await db.execute(select(User))
     user = result.scalars().first()
 
@@ -71,6 +76,9 @@ async def get_active_plan(
 
     if not plan:
         raise HTTPException(status_code=404, detail="No active plan found")
+
+    response = TrainingPlanResponse.model_validate(plan, from_attributes=True)
+    await cache_set("active_plan", response.model_dump(), ttl=120)
 
     return plan
 
