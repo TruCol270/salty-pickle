@@ -1,37 +1,33 @@
 # --- Python deps ---
-FROM python:3.11-slim AS py-builder
+# Wheels-only: skip apt (gcc/libpq-dev) to avoid flaky remote builders; deps ship manylinux wheels.
+FROM python:3.11-slim-bookworm AS py-builder
 
 WORKDIR /build
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+RUN pip install --no-cache-dir --retries 5 --timeout 120 \
+    --prefix=/install -r requirements.txt
 
 # --- Frontend build ---
-FROM node:20-slim AS fe-builder
+FROM node:20-bookworm-slim AS fe-builder
 
 WORKDIR /fe
 # Install devDependencies (Vite, TypeScript) even when the platform sets NODE_ENV=production during build.
 ENV NODE_ENV=development
+ENV NODE_OPTIONS=--max-old-space-size=8192
+ENV CI=false
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 ARG VITE_API_BASE_URL=""
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV NODE_ENV=production
 RUN npm run build
 
 # --- Runtime ---
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=py-builder /install /usr/local
 COPY --from=fe-builder /fe/dist ./static
