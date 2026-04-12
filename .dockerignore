@@ -1,0 +1,15 @@
+# Smaller, faster Docker sends to Railway; avoid junk in build context
+.git
+.github
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.venv
+**/venv
+**/.env
+**/.env.*
+.worktrees/mvp/frontend/node_modules
+.worktrees/mvp/.venv
+.superpowers
