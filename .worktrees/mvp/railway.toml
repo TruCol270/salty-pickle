@@ -3,11 +3,7 @@ builder = "DOCKERFILE"
 dockerfilePath = "./Dockerfile"
 
 [deploy]
-startCommand = "/bin/sh -c \"exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}\""
 healthcheckPath = "/live"
-healthcheckTimeout = 60
+healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3
-
-[deploy.releaseCommand]
-command = "alembic upgrade head"
+restartPolicyMaxRetries = 5
