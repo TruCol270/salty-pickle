@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -10,6 +11,7 @@ from app.services.performance_analyzer import PerformanceAnalyzer
 from app.agents.adjustment_agent import WorkoutAdjustmentAgent
 from app.models import User
 
+logger = logging.getLogger(__name__)
 
 scheduler = AsyncIOScheduler()
 
@@ -27,9 +29,9 @@ async def sync_workouts_job():
                 service = WorkoutSyncService(db)
                 after = datetime.utcnow() - timedelta(hours=24)
                 synced = await service.sync_from_strava(user, after=after)
-                print(f"Synced {len(synced)} workouts for user {user.id}")
+                logger.info("Synced %d workouts for user %s", len(synced), user.id)
             except Exception as e:
-                print(f"Failed to sync workouts for user {user.id}: {e}")
+                logger.exception("Failed to sync workouts for user %s: %s", user.id, e)
 
 
 async def run_adjustments_job():
@@ -43,11 +45,15 @@ async def run_adjustments_job():
                 adjustments = await agent.run_daily_adjustments(user)
 
                 if adjustments:
-                    print(f"Made {len(adjustments)} adjustments for user {user.id}")
+                    logger.info(
+                        "Made %d adjustments for user %s", len(adjustments), user.id
+                    )
                     for adj in adjustments:
-                        print(f"  - {adj['message']}")
+                        logger.info("  - %s", adj["message"])
             except Exception as e:
-                print(f"Failed to run adjustments for user {user.id}: {e}")
+                logger.exception(
+                    "Failed to run adjustments for user %s: %s", user.id, e
+                )
 
 
 async def performance_check_job():
@@ -64,15 +70,19 @@ async def performance_check_job():
                 analyzer = PerformanceAnalyzer(db)
                 result = await analyzer.run_daily_performance_check(user)
 
-                print(f"Performance check for user {user.id}:")
-                print(f"  - Synced: {result['synced']} new workouts")
-                print(f"  - Matched: {result['matched']} completed workouts to plan")
-                print(f"  - Adjustments: {result['adjustments']} plan changes")
+                logger.info("Performance check for user %s:", user.id)
+                logger.info("  - Synced: %s new workouts", result["synced"])
+                logger.info(
+                    "  - Matched: %s completed workouts to plan", result["matched"]
+                )
+                logger.info("  - Adjustments: %s plan changes", result["adjustments"])
 
                 for adj in result.get("details", []):
-                    print(f"    - {adj['type']}: {adj['message']}")
+                    logger.info("    - %s: %s", adj["type"], adj["message"])
             except Exception as e:
-                print(f"Failed performance check for user {user.id}: {e}")
+                logger.exception(
+                    "Failed performance check for user %s: %s", user.id, e
+                )
 
 
 def setup_scheduler():
@@ -98,7 +108,7 @@ def setup_scheduler():
     )
 
     scheduler.start()
-    print("Scheduler started")
+    logger.info("Scheduler started")
 
 
 def shutdown_scheduler():

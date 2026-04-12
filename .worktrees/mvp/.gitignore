@@ -80,3 +80,6 @@ venv.bak/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Frontend (npm)
+node_modules/

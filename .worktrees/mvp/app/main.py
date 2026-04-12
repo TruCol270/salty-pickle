@@ -1,11 +1,21 @@
+import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+import structlog
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 
 from app.config import get_settings
-from app.database import init_db
+from app.database import init_db, AsyncSessionLocal
+from app.exceptions import SaltyPickleError, ResourceNotFoundError
+from app.limiter import limiter
 from app.api import (
     auth,
     workouts,
@@ -15,18 +25,39 @@ from app.api import (
     preferences,
     races,
     whoop,
+    integrations,
 )
 from app.scheduler.jobs import setup_scheduler, shutdown_scheduler
 
+logger = logging.getLogger(__name__)
+
 settings = get_settings()
+
+structlog.configure(
+    processors=[
+        structlog.processors.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.JSONRenderer(),
+    ],
+    wrapper_class=structlog.stdlib.BoundLogger,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+)
+logging.basicConfig(
+    format="%(message)s",
+    level=logging.DEBUG if settings.debug else logging.INFO,
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    setup_scheduler()
+    if settings.enable_scheduler:
+        setup_scheduler()
     yield
-    shutdown_scheduler()
+    if settings.enable_scheduler:
+        shutdown_scheduler()
 
 
 app = FastAPI(
@@ -43,6 +74,69 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    if not settings.debug:
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+    return response
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc: HTTPException):
+    code = "http_error"
+    if exc.status_code == 404:
+        code = "not_found"
+    elif exc.status_code == 401:
+        code = "unauthorized"
+    elif exc.status_code == 403:
+        code = "forbidden"
+    detail = exc.detail
+    if isinstance(detail, (list, dict)):
+        detail = str(detail)
+    elif not isinstance(detail, str):
+        detail = str(detail)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": {"code": code, "message": detail, "details": None}},
+    )
+
+
+@app.exception_handler(ResourceNotFoundError)
+async def resource_not_found_handler(request, exc: ResourceNotFoundError):
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": {
+                "code": "not_found",
+                "message": str(exc),
+                "details": None,
+            }
+        },
+    )
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request, exc: ValueError):
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": {
+                "code": "validation_error",
+                "message": str(exc),
+                "details": None,
+            }
+        },
+    )
+
+
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(workouts.router, prefix="/api/v1/workouts", tags=["workouts"])
 app.include_router(plans.router, prefix="/api/v1/plans", tags=["plans"])
@@ -51,10 +145,48 @@ app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytic
 app.include_router(preferences.router, prefix="/api/v1/user", tags=["user"])
 app.include_router(races.router, prefix="/api/v1/races", tags=["races"])
 app.include_router(whoop.router, prefix="/api/v1/whoop", tags=["whoop"])
+app.include_router(
+    integrations.router, prefix="/api/v1/integrations", tags=["integrations"]
+)
+
+
+@app.exception_handler(SaltyPickleError)
+async def saltyPickle_error_handler(request, exc: SaltyPickleError):
+    return JSONResponse(
+        status_code=400,
+        content={"error": {"code": "saltyPickle_error", "message": str(exc), "details": None}},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def fastapi_validation_error_handler(request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"error": {"code": "validation_error", "message": "Request validation failed", "details": exc.errors()}},
+    )
+
+
+@app.get("/live")
+async def live_check():
+    return {"status": "alive"}
+
+
+@app.get("/healthz")
+async def healthz_check():
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        return {"status": "ready", "db": "ok"}
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": {"code": "unhealthy", "message": "Database unavailable", "details": str(e)}},
+        )
 
 
 @app.get("/health")
-async def health_check():
+async def health_check_legacy():
     return {"status": "healthy"}
 
 
@@ -161,3 +293,17 @@ REDIRECT_HTML = """<!DOCTYPE html>
   </div>
 </body>
 </html>"""
+
+
+# --- SPA static file serving (must be LAST) ---
+_static_dir = Path(__file__).resolve().parent.parent / "static"
+if _static_dir.is_dir():
+    app.mount("/assets", StaticFiles(directory=str(_static_dir / "assets")), name="static-assets")
+
+    @app.get("/{full_path:path}")
+    async def spa_catch_all(request: Request, full_path: str):
+        """Serve the SPA index.html for any path not matched by API routes."""
+        index = _static_dir / "index.html"
+        if index.exists():
+            return FileResponse(str(index))
+        return JSONResponse(status_code=404, content={"error": "Frontend not built"})

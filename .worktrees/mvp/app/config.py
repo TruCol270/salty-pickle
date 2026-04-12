@@ -1,4 +1,6 @@
+import warnings
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,6 +26,12 @@ class Settings(BaseSettings):
 
     debug: bool = False
     allowed_origins: list[str] = ["http://localhost:3000"]
+    frontend_base_url: str = "http://localhost:3000"
+
+    enable_scheduler: bool = False
+
+    # If set, POST /auth/token/bootstrap with header X-Bootstrap-Key can mint a JWT (dev/ops only).
+    auth_bootstrap_key: str = ""
 
     gcp_project_id: str = ""
     gcp_region: str = ""
@@ -35,4 +43,12 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    if not s.debug and s.secret_key == "change-me-in-production":
+        raise RuntimeError(
+            "SECRET_KEY still has its default value. "
+            "Set a strong random SECRET_KEY before running in production."
+        )
+    if s.debug and s.secret_key == "change-me-in-production":
+        warnings.warn("Using default SECRET_KEY — not safe for production", stacklevel=2)
+    return s

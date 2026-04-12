@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Optional
 
@@ -6,25 +7,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.database import get_db
+from app.deps import get_current_user
 from app.models import User
 from app.services.whoop import WhoopService
 from app.config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.get("/recovery")
 async def get_recovery_data(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Get latest Whoop recovery data."""
-    result = await db.execute(select(User))
-    user = result.scalars().first()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
     if not user.whoop_access_token:
         return {
             "connected": False,
@@ -44,6 +42,21 @@ async def get_recovery_data(
         "recovery": recovery,
         "recommendation": recommendation,
     }
+
+
+@router.get("/recovery/trend")
+async def get_recovery_trend(
+    days: int = 7,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Recovery / HRV / RHR points for charts (last N days)."""
+    if not user.whoop_access_token:
+        return {"connected": False, "points": []}
+
+    service = WhoopService(db)
+    points = await service.get_recovery_history(user, days=min(days, 30))
+    return {"connected": True, "points": points}
 
 
 @router.post("/webhook/register")
@@ -85,18 +98,13 @@ async def whoop_webhook(
     event_type = payload.get("event_type", "")
     whoop_user_id = str(payload.get("user_id", ""))
 
-    print(f"Whoop webhook received: {event_type} for user {whoop_user_id}")
+    logger.info("Whoop webhook received: %s for user %s", event_type, whoop_user_id)
 
-    # Find user by whoop_user_id
     result = await db.execute(select(User).where(User.whoop_user_id == whoop_user_id))
     user = result.scalars().first()
 
-    # Fall back to first user if whoop_user_id not set yet
     if not user:
-        result = await db.execute(select(User))
-        user = result.scalars().first()
-
-    if not user:
+        logger.warning("Whoop webhook for unknown whoop_user_id=%s", whoop_user_id)
         return {"status": "no_user"}
 
     if event_type == "recovery.updated":
@@ -127,7 +135,11 @@ async def _handle_recovery_event(payload: dict, user: User, db: AsyncSession):
     recommendation = await service.get_recovery_recommendation(recovery_data)
     recovery_score = recovery_data.get("recovery_score", 0.5)
 
-    print(f"Recovery score: {recovery_score:.0%}, recommendation: {recommendation}")
+    logger.info(
+        "Recovery score: %.0f%%, recommendation: %s",
+        (recovery_score * 100) if recovery_score <= 1 else recovery_score,
+        recommendation,
+    )
 
     # Only adjust plan for low recovery - don't spam adjustments
     if recommendation in ("easy", "rest"):
@@ -153,7 +165,7 @@ async def _handle_recovery_event(payload: dict, user: User, db: AsyncSession):
             .where(
                 and_(
                     PlannedWorkout.plan_id == plan.id,
-                    PlannedWorkout.completed == "false",
+                    PlannedWorkout.completed == False,  # noqa: E712
                 )
             )
             .order_by(PlannedWorkout.scheduled_date)
@@ -190,8 +202,10 @@ async def _handle_recovery_event(payload: dict, user: User, db: AsyncSession):
                     )
 
         await db.commit()
-        print(
-            f"Adjusted workout {target.id} to {target.workout_type} based on Whoop recovery"
+        logger.info(
+            "Adjusted workout %s to %s based on Whoop recovery",
+            target.id,
+            target.workout_type,
         )
 
 
@@ -202,7 +216,9 @@ async def _handle_sleep_event(payload: dict, user: User, db: AsyncSession):
     sleep_efficiency = score.get("sleep_efficiency_percentage", 0)
     sleep_hours = (data.get("end") or 0) - (data.get("start") or 0)
 
-    print(f"Sleep event for user {user.id}: {sleep_efficiency:.0f}% efficiency")
+    logger.info(
+        "Sleep event for user %s: %.0f%% efficiency", user.id, sleep_efficiency
+    )
 
 
 async def _handle_workout_event(payload: dict, user: User, db: AsyncSession):
@@ -210,7 +226,7 @@ async def _handle_workout_event(payload: dict, user: User, db: AsyncSession):
     from app.services.workout_sync import WorkoutSyncService
     from datetime import timedelta
 
-    print(f"Workout event for user {user.id}, triggering Strava sync")
+    logger.info("Workout event for user %s, triggering Strava sync", user.id)
 
     if user.strava_access_token:
         try:
@@ -219,6 +235,8 @@ async def _handle_workout_event(payload: dict, user: User, db: AsyncSession):
                 user,
                 after=datetime.utcnow() - timedelta(hours=6),
             )
-            print(f"Synced {len(synced)} workouts after Whoop workout event")
+            logger.info(
+                "Synced %d workouts after Whoop workout event", len(synced)
+            )
         except Exception as e:
-            print(f"Failed Strava sync after Whoop workout event: {e}")
+            logger.exception("Failed Strava sync after Whoop workout event: %s", e)

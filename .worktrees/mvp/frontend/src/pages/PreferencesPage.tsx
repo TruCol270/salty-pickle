@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import axios from 'axios';
+import { api } from '../lib/api';
 import { Settings, Save, Loader2, ArrowLeft, Clock, Calendar, Moon, AlertCircle } from 'lucide-react';
 
 interface Preferences {
@@ -35,7 +35,7 @@ export function PreferencesPage() {
   const { data: prefs, isLoading } = useQuery<Preferences>({
     queryKey: ['preferences'],
     queryFn: async () => {
-      const response = await axios.get('/api/v1/user/preferences');
+      const response = await api.get('/api/v1/user/preferences');
       return response.data;
     },
   });
@@ -54,7 +54,7 @@ export function PreferencesPage() {
 
   const updatePrefs = useMutation({
     mutationFn: async (data: Preferences) => {
-      const response = await axios.put('/api/v1/user/preferences', data);
+      const response = await api.put('/api/v1/user/preferences', data);
       return response.data;
     },
     onSuccess: () => {

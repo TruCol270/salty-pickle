@@ -33,7 +33,7 @@ class PerformanceAnalyzer:
                 select(PlannedWorkout).where(
                     and_(
                         PlannedWorkout.plan_id == plan.id,
-                        PlannedWorkout.completed == "false",
+                        PlannedWorkout.completed == False,  # noqa: E712
                     )
                 )
             )
@@ -174,7 +174,7 @@ class PerformanceAnalyzer:
                 .where(
                     and_(
                         PlannedWorkout.plan_id == plan.id,
-                        PlannedWorkout.completed == "false",
+                        PlannedWorkout.completed == False,  # noqa: E712
                         PlannedWorkout.scheduled_date >= datetime.utcnow(),
                     )
                 )
@@ -241,7 +241,7 @@ class PerformanceAnalyzer:
             completed = match["completed"]
 
             planned.completed_workout = completed
-            planned.completed = "true"
+            planned.completed = True
 
             score = await self.calculate_performance_score(planned, completed)
             if score:

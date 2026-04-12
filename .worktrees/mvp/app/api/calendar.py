@@ -1,11 +1,10 @@
 from datetime import datetime, timedelta
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.database import get_db
+from app.deps import get_current_user
 from app.models import User
 from app.schemas.calendar import CalendarSyncResponse, CalendarEventResponse
 from app.services.calendar_sync import CalendarSyncService
@@ -17,11 +16,9 @@ router = APIRouter()
 async def sync_plan_to_calendar(
     plan_id: int,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(User))
-    user = result.scalars().first()
-
-    if not user or not user.google_access_token:
+    if not user.google_access_token:
         raise HTTPException(status_code=400, detail="Google Calendar not connected")
 
     service = CalendarSyncService(db)
@@ -37,11 +34,9 @@ async def sync_plan_to_calendar(
 async def get_calendar_events(
     days: int = Query(default=14, le=90),
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(User))
-    user = result.scalars().first()
-
-    if not user or not user.google_access_token:
+    if not user.google_access_token:
         raise HTTPException(status_code=400, detail="Google Calendar not connected")
 
     from app.services.google_calendar import GoogleCalendarService

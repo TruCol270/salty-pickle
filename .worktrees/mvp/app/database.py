@@ -29,5 +29,8 @@ async def get_db() -> AsyncSession:
 
 
 async def init_db():
+    """Verify DB connectivity on startup. Schema is managed by Alembic migrations."""
     async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        from sqlalchemy import text
+
+        await conn.execute(text("SELECT 1"))

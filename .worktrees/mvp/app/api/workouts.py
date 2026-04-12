@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 
 from app.database import get_db
+from app.deps import get_current_user
+from app.limiter import limiter
 from app.models import User, CompletedWorkout
 from app.schemas.workout import WorkoutResponse, WorkoutSyncResponse
 from app.services.workout_sync import WorkoutSyncService
@@ -20,8 +22,11 @@ async def list_workouts(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    query = select(CompletedWorkout).order_by(desc(CompletedWorkout.start_time))
+    query = select(CompletedWorkout).where(
+        CompletedWorkout.user_id == user.id
+    ).order_by(desc(CompletedWorkout.start_time))
 
     if start_date:
         query = query.where(CompletedWorkout.start_time >= start_date)
@@ -35,14 +40,14 @@ async def list_workouts(
 
 
 @router.post("/sync", response_model=WorkoutSyncResponse)
+@limiter.limit("10/minute")
 async def sync_workouts(
+    request: Request,
     days: int = Query(default=7, le=30),
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(User))
-    user = result.scalars().first()
-
-    if not user or not user.strava_access_token:
+    if not user.strava_access_token:
         raise HTTPException(status_code=400, detail="Strava not connected")
 
     after = datetime.utcnow() - timedelta(days=days)
@@ -60,9 +65,13 @@ async def sync_workouts(
 async def get_workout(
     workout_id: int,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     result = await db.execute(
-        select(CompletedWorkout).where(CompletedWorkout.id == workout_id)
+        select(CompletedWorkout).where(
+            CompletedWorkout.id == workout_id,
+            CompletedWorkout.user_id == user.id,
+        )
     )
     workout = result.scalar_one_or_none()
 

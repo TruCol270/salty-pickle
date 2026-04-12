@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import { Calendar, TrendingUp, Activity, Plus, Flag } from 'lucide-react';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { api } from '../lib/api';
 
 interface PlanProgress {
   plan_name: string;
@@ -21,28 +22,39 @@ interface PerformanceMetrics {
 }
 
 export function Dashboard() {
-  const { data: planProgress, isLoading: planLoading } = useQuery<PlanProgress>({
+  const { data: planProgress, isLoading: planLoading, isError: planError } = useQuery<PlanProgress>({
     queryKey: ['planProgress'],
     queryFn: async () => {
-      const response = await axios.get('/api/v1/plans/active');
+      const response = await api.get('/api/v1/plans/active');
       const planId = response.data.id;
-      const progress = await axios.get(`/api/v1/analytics/plan-progress/${planId}`);
+      const progress = await api.get(`/api/v1/analytics/plan-progress/${planId}`);
       return progress.data;
     },
     retry: false,
   });
 
-  const { data: performance, isLoading: perfLoading } = useQuery<PerformanceMetrics>({
+  const { data: performance, isLoading: perfLoading, isError: perfError } = useQuery<PerformanceMetrics>({
     queryKey: ['performance'],
     queryFn: async () => {
-      const response = await axios.get('/api/v1/analytics/performance');
+      const response = await api.get('/api/v1/analytics/performance');
       return response.data;
     },
     retry: false,
   });
 
   if (planLoading || perfLoading) {
-    return <div className="p-8">Loading...</div>;
+    return <div className="p-8 flex items-center justify-center"><LoadingSpinner size="lg" /></div>;
+  }
+
+  if (planError || perfError) {
+    return (
+      <div className="p-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-red-800 mb-2">Error Loading Dashboard</h2>
+          <p className="text-red-700">Unable to load dashboard data. Please try refreshing the page.</p>
+        </div>
+      </div>
+    );
   }
 
   return (

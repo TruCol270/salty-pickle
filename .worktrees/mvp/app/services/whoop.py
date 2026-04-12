@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
 import hmac
@@ -10,6 +11,7 @@ from app.config import get_settings
 from app.models import User
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 # Whoop sends webhook events for these types
 WHOOP_WEBHOOK_EVENTS = [
@@ -129,9 +131,61 @@ class WhoopService:
                     "created_at": latest.get("created_at"),
                 }
         except Exception as e:
-            print(f"Failed to get Whoop recovery: {e}")
+            logger.exception("Failed to get Whoop recovery: %s", e)
 
         return None
+
+    async def get_recovery_history(self, user: User, days: int = 7) -> list[dict]:
+        """Recent recovery points for charts (newest last)."""
+        if not user.whoop_access_token:
+            return []
+        end = datetime.utcnow()
+        start = end - timedelta(days=days)
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.API_BASE}/recovery",
+                    headers={"Authorization": f"Bearer {user.whoop_access_token}"},
+                    params={
+                        "start": start.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+                        "end": end.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+                        "limit": 25,
+                    },
+                )
+                response.raise_for_status()
+                records = response.json().get("records", [])
+        except Exception as e:
+            logger.warning("Whoop recovery history fetch failed: %s", e)
+            return []
+
+        points: list[dict] = []
+        for rec in records:
+            score = rec.get("score", {}) or {}
+            raw = score.get("recovery_score")
+            if raw is None:
+                continue
+            rf = float(raw)
+            recovery_pct = rf * 100.0 if rf <= 1.0 else rf
+            created = rec.get("created_at") or rec.get("updated_at") or ""
+            label = ""
+            try:
+                if isinstance(created, str) and created:
+                    dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                    label = dt.strftime("%a")
+                else:
+                    label = str(len(points))
+            except (ValueError, TypeError):
+                label = str(len(points))
+            points.append(
+                {
+                    "label": label,
+                    "recovery": round(recovery_pct, 1),
+                    "hrv": score.get("hrv_rmssd_milli"),
+                    "rhr": score.get("resting_heart_rate"),
+                }
+            )
+        # Oldest → newest for left-to-right chart
+        return list(reversed(points))
 
     async def get_recovery_recommendation(self, recovery_data: dict) -> str:
         if not recovery_data:

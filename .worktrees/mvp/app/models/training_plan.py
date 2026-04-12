@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, DateTime, Float, Text, ForeignKey
+from sqlalchemy import Boolean, Column, String, Integer, DateTime, Float, Text, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -59,12 +59,12 @@ class PlannedWorkout(Base):
     target_pace_min_per_km = Column(Float, nullable=True)
     target_elevation_m = Column(Float, nullable=True)
 
-    flexible = Column(String, default="true")
+    flexible = Column(Boolean, default=True)
     notes = Column(Text, nullable=True)
 
     scheduled_date = Column(DateTime, nullable=True)
     calendar_event_id = Column(String, nullable=True)
-    completed = Column(String, default="false")
+    completed = Column(Boolean, default=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

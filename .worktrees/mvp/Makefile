@@ -16,7 +16,7 @@ migrate:
 	docker-compose run api alembic upgrade head
 
 db-reset:
-	docker-compose run api alembic downgrade base && alembic upgrade head
+	docker-compose run api alembic downgrade base && docker-compose run api alembic upgrade head
 
 run:
 	docker-compose up api
