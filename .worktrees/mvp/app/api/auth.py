@@ -16,7 +16,7 @@ from app.schemas.auth import TokenResponse
 from app.security import create_access_token
 from app.services.strava import StravaService
 from app.services.whoop import WhoopService
-from app.config import get_settings
+from app.config import get_settings, parse_allowed_origins_to_list
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ router = APIRouter()
 def _oauth_redirect_netloc_allowlist() -> frozenset[str]:
     """Netlocs (host:port) allowed for post-OAuth redirects (must match app origins)."""
     netlocs: set[str] = set()
-    for origin in settings.allowed_origins:
+    for origin in parse_allowed_origins_to_list(settings.allowed_origins):
         p = urlparse(origin)
         if p.scheme in ("http", "https") and p.netloc:
             netlocs.add(p.netloc.lower())

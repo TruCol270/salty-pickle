@@ -1,7 +1,26 @@
+import json
 import warnings
 from functools import lru_cache
 
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def parse_allowed_origins_to_list(raw: str) -> list[str]:
+    """ALLOWED_ORIGINS may be a comma-separated list or a JSON array string (Railway-friendly)."""
+    s = (raw or "").strip()
+    if not s:
+        return ["http://localhost:3000"]
+    if s.startswith("["):
+        try:
+            data = json.loads(s)
+            if isinstance(data, list):
+                out = [str(x).strip() for x in data if str(x).strip()]
+                return out or ["http://localhost:3000"]
+        except json.JSONDecodeError:
+            pass
+    parts = [x.strip() for x in s.split(",") if x.strip()]
+    return parts or ["http://localhost:3000"]
 
 
 class Settings(BaseSettings):
@@ -25,8 +44,27 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24 * 7
 
     debug: bool = False
-    allowed_origins: list[str] = ["http://localhost:3000"]
+    # Must stay a plain str so EnvSettingsSource does not require JSON for list fields.
+    # Use comma-separated URLs or a JSON array string; see parse_allowed_origins_to_list.
+    allowed_origins: str = Field(default="http://localhost:3000")
     frontend_base_url: str = "http://localhost:3000"
+
+    @field_validator("allowed_origins", mode="after")
+    @classmethod
+    def normalize_allowed_origins(cls, v: str) -> str:
+        """Store JSON-array env values as comma-separated for a single predictable format."""
+        s = v.strip()
+        if not s:
+            return "http://localhost:3000"
+        if s.startswith("["):
+            try:
+                data = json.loads(s)
+                if isinstance(data, list):
+                    joined = ",".join(str(x).strip() for x in data if str(x).strip())
+                    return joined or "http://localhost:3000"
+            except json.JSONDecodeError:
+                pass
+        return s
 
     enable_scheduler: bool = False
 

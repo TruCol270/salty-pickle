@@ -12,7 +12,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
-from app.config import get_settings
+from app.config import get_settings, parse_allowed_origins_to_list
 from app.database import init_db, AsyncSessionLocal
 from app.exceptions import SaltyPickleError, ResourceNotFoundError
 from app.limiter import limiter
@@ -75,7 +75,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=parse_allowed_origins_to_list(settings.allowed_origins),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
