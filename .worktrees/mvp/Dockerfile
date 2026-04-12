@@ -15,6 +15,8 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 FROM node:20-slim AS fe-builder
 
 WORKDIR /fe
+# Install devDependencies (Vite, TypeScript) even when the platform sets NODE_ENV=production during build.
+ENV NODE_ENV=development
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
