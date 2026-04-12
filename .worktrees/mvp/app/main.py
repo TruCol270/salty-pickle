@@ -303,22 +303,44 @@ REDIRECT_HTML = """<!DOCTYPE html>
 
 
 # --- SPA static file serving (must be LAST) ---
-_static_dir = Path(__file__).resolve().parent.parent / "static"
-if _static_dir.is_dir():
-    app.mount("/assets", StaticFiles(directory=str(_static_dir / "assets")), name="static-assets")
+# Built UI lives in app/static next to this module (see Dockerfile: COPY dist -> ./app/static).
+_static_dir = Path(__file__).resolve().parent / "static"
+_assets_dir = _static_dir / "assets"
+if _assets_dir.is_dir():
+    app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="static-assets")
+else:
+    logger.warning("Vite assets directory missing at %s — JS/CSS will 404", _assets_dir)
 
-    def _spa_index():
-        index = _static_dir / "index.html"
-        if index.exists():
-            return FileResponse(str(index))
-        return JSONResponse(status_code=404, content={"error": "Frontend not built"})
 
-    @app.get("/")
-    async def spa_root():
-        """`/{path:path}` does not match the bare root `/` in Starlette; serve index explicitly."""
-        return _spa_index()
+def _spa_index():
+    index = _static_dir / "index.html"
+    if index.exists():
+        return FileResponse(str(index))
+    return JSONResponse(
+        status_code=503,
+        content={
+            "error": "Frontend not built",
+            "static_dir": str(_static_dir),
+            "hint": "Rebuild the Docker image with the frontend stage.",
+        },
+    )
 
-    @app.get("/{full_path:path}")
-    async def spa_catch_all(request: Request, full_path: str):
-        """Serve the SPA index.html for client routes (e.g. /login) not matched by API routes."""
-        return _spa_index()
+
+@app.get("/")
+async def spa_root():
+    """`/{path:path}` does not match the bare `/` in Starlette; serve index explicitly."""
+    return _spa_index()
+
+
+@app.get("/{full_path:path}")
+async def spa_catch_all(request: Request, full_path: str):
+    """Serve the SPA index for client routes (e.g. /login) not matched by API routes."""
+    return _spa_index()
+
+
+logger.info(
+    "SPA: static_dir=%s index=%s assets=%s",
+    _static_dir,
+    (_static_dir / "index.html").exists(),
+    _assets_dir.is_dir(),
+)

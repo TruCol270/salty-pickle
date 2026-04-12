@@ -37,9 +37,9 @@ WORKDIR /app
 # No apt here: psycopg2-binary + asyncpg wheels bundle what they need for typical Linux targets.
 
 COPY --from=py-builder /install /usr/local
-COPY --from=fe-builder /fe/dist ./static
-
 COPY .worktrees/mvp/app ./app
+# Colocate Vite dist with the package so Path(__file__).parent / "static" always resolves in the image.
+COPY --from=fe-builder /fe/dist ./app/static
 COPY .worktrees/mvp/alembic.ini .
 COPY .worktrees/mvp/worker_main.py .
 

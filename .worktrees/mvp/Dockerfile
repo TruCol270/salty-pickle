@@ -30,9 +30,8 @@ FROM python:3.11-slim-bookworm
 WORKDIR /app
 
 COPY --from=py-builder /install /usr/local
-COPY --from=fe-builder /fe/dist ./static
-
 COPY app ./app
+COPY --from=fe-builder /fe/dist ./app/static
 COPY alembic.ini .
 COPY worker_main.py .
 
