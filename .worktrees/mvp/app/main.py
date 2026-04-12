@@ -52,7 +52,14 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
+    # Do not block process bind on DB: platforms healthcheck /live while Postgres
+    # or env is still misconfigured; /healthz reports DB readiness.
+    try:
+        await init_db()
+    except Exception:
+        logger.exception(
+            "Database unreachable at startup — serving /live only; fix DATABASE_URL"
+        )
     if settings.enable_scheduler:
         setup_scheduler()
     yield
