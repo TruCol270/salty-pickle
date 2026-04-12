@@ -307,10 +307,18 @@ _static_dir = Path(__file__).resolve().parent.parent / "static"
 if _static_dir.is_dir():
     app.mount("/assets", StaticFiles(directory=str(_static_dir / "assets")), name="static-assets")
 
-    @app.get("/{full_path:path}")
-    async def spa_catch_all(request: Request, full_path: str):
-        """Serve the SPA index.html for any path not matched by API routes."""
+    def _spa_index():
         index = _static_dir / "index.html"
         if index.exists():
             return FileResponse(str(index))
         return JSONResponse(status_code=404, content={"error": "Frontend not built"})
+
+    @app.get("/")
+    async def spa_root():
+        """`/{path:path}` does not match the bare root `/` in Starlette; serve index explicitly."""
+        return _spa_index()
+
+    @app.get("/{full_path:path}")
+    async def spa_catch_all(request: Request, full_path: str):
+        """Serve the SPA index.html for client routes (e.g. /login) not matched by API routes."""
+        return _spa_index()
