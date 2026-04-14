@@ -1,13 +1,22 @@
 from datetime import datetime, timedelta
+import logging
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
-from app.models import User, TrainingPlan, PlannedWorkout
+from app.models import (
+    User,
+    TrainingPlan,
+    PlannedWorkout,
+    GoogleCalendarSyncRun,
+    SyncRunStatus,
+)
 from app.services.google_calendar import GoogleCalendarService
 from app.services.plan_engine import PlanEngineService
 from app.schemas.calendar import CalendarEventResponse
+
+logger = logging.getLogger(__name__)
 
 
 class CalendarSyncService:
@@ -39,6 +48,15 @@ class CalendarSyncService:
         user: User,
         plan_id: int,
     ) -> list[CalendarEventResponse]:
+        sync_run = GoogleCalendarSyncRun(
+            user_id=user.id,
+            plan_id=plan_id,
+            status=SyncRunStatus.STARTED,
+            started_at=datetime.utcnow(),
+        )
+        self.db.add(sync_run)
+        await self.db.flush()
+
         result = await self.db.execute(
             select(TrainingPlan).where(
                 and_(
@@ -58,6 +76,8 @@ class CalendarSyncService:
         planned_workouts = workouts_result.scalars().all()
 
         synced = []
+        failures = 0
+        sync_run.events_attempted = len(planned_workouts)
         for workout in planned_workouts:
             scheduled_date = workout.scheduled_date
             if not scheduled_date:
@@ -105,8 +125,23 @@ class CalendarSyncService:
                 workout.calendar_event_id = event["id"]
                 synced.append(self._transform_google_event(event))
             except Exception as e:
-                print(f"Failed to create calendar event: {e}")
+                failures += 1
+                logger.warning(
+                    "Failed to create calendar event for workout_id=%s: %s",
+                    workout.id,
+                    e,
+                )
 
+        if failures == 0:
+            sync_run.status = SyncRunStatus.SUCCESS
+        else:
+            sync_run.status = SyncRunStatus.FAILED
+            sync_run.error_message = (
+                f"{failures} of {sync_run.events_attempted} events failed"
+            )
+            sync_run.metadata_json = {"failure_count": failures}
+        sync_run.finished_at = datetime.utcnow()
+        sync_run.events_synced = len(synced)
         await self.db.commit()
         return synced
 

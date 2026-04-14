@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.database import get_db
 from app.deps import get_current_user
-from app.models import User
+from app.models import User, ProviderWebhookEvent, WhoopRecoverySample, SyncRunStatus
 from app.services.whoop import WhoopService
 from app.config import get_settings
 
@@ -74,8 +74,10 @@ async def register_webhook(
         result = await service.register_webhook(callback_url)
         return {"registered": True, "webhook": result}
     except Exception as e:
+        logger.exception("Failed to register Whoop webhook: %s", e)
         raise HTTPException(
-            status_code=500, detail=f"Failed to register webhook: {str(e)}"
+            status_code=500,
+            detail="Failed to register webhook with provider",
         )
 
 
@@ -88,15 +90,45 @@ async def whoop_webhook(
     """Receive real-time Whoop events (recovery, sleep, workout)."""
     payload_bytes = await request.body()
 
+    if not settings.whoop_client_secret:
+        raise HTTPException(
+            status_code=503,
+            detail="Webhook signature secret is not configured",
+        )
+
     # Verify signature if secret is configured
-    if settings.whoop_client_secret and x_whoop_signature:
-        service = WhoopService(db)
-        if not service.verify_webhook_signature(payload_bytes, x_whoop_signature):
-            raise HTTPException(status_code=401, detail="Invalid webhook signature")
+    if not x_whoop_signature:
+        raise HTTPException(status_code=401, detail="Missing webhook signature")
+    service = WhoopService(db)
+    if not service.verify_webhook_signature(payload_bytes, x_whoop_signature):
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
     payload = await request.json()
     event_type = payload.get("event_type", "")
     whoop_user_id = str(payload.get("user_id", ""))
+    event_id = str(payload.get("id", "")) or None
+
+    if event_id:
+        dedupe = await db.execute(
+            select(ProviderWebhookEvent).where(
+                ProviderWebhookEvent.provider == "whoop",
+                ProviderWebhookEvent.event_id == event_id,
+            )
+        )
+        existing = dedupe.scalar_one_or_none()
+        if existing and existing.status == SyncRunStatus.SUCCESS:
+            return {"status": "duplicate"}
+
+    webhook_event = ProviderWebhookEvent(
+        provider="whoop",
+        event_type=event_type,
+        provider_user_id=whoop_user_id or None,
+        event_id=event_id,
+        status=SyncRunStatus.STARTED,
+        payload=payload,
+    )
+    db.add(webhook_event)
+    await db.flush()
 
     logger.info("Whoop webhook received: %s for user %s", event_type, whoop_user_id)
 
@@ -105,16 +137,34 @@ async def whoop_webhook(
 
     if not user:
         logger.warning("Whoop webhook for unknown whoop_user_id=%s", whoop_user_id)
+        webhook_event.status = SyncRunStatus.FAILED
+        webhook_event.error_message = "No user mapped to whoop_user_id"
+        webhook_event.processed_at = datetime.utcnow()
+        await db.commit()
         return {"status": "no_user"}
 
-    if event_type == "recovery.updated":
-        await _handle_recovery_event(payload, user, db)
-    elif event_type == "sleep.updated":
-        await _handle_sleep_event(payload, user, db)
-    elif event_type == "workout.updated":
-        await _handle_workout_event(payload, user, db)
+    webhook_event.user_id = user.id
 
-    return {"status": "ok"}
+    try:
+        if event_type == "recovery.updated":
+            await _handle_recovery_event(payload, user, db)
+        elif event_type == "sleep.updated":
+            await _handle_sleep_event(payload, user, db)
+        elif event_type == "workout.updated":
+            await _handle_workout_event(payload, user, db)
+
+        webhook_event.status = SyncRunStatus.SUCCESS
+        webhook_event.processed_at = datetime.utcnow()
+        await db.commit()
+        return {"status": "ok"}
+    except Exception as exc:
+        await db.rollback()
+        webhook_event.status = SyncRunStatus.FAILED
+        webhook_event.error_message = str(exc)
+        webhook_event.processed_at = datetime.utcnow()
+        db.add(webhook_event)
+        await db.commit()
+        raise
 
 
 async def _handle_recovery_event(payload: dict, user: User, db: AsyncSession):
@@ -127,10 +177,30 @@ async def _handle_recovery_event(payload: dict, user: User, db: AsyncSession):
     if not recovery_data:
         return
 
+    sample = WhoopRecoverySample(
+        user_id=user.id,
+        whoop_user_id=str(payload.get("user_id", "")) or user.whoop_user_id,
+        source="webhook",
+        source_id=str(payload.get("id", "")) or None,
+        cycle_id=str(recovery_data.get("cycle_id", "")) or None,
+        recovery_score=int((recovery_data.get("recovery_score", 0) or 0) * 100),
+        resting_heart_rate=recovery_data.get("resting_heart_rate"),
+        hrv_rmssd_milli=recovery_data.get("hrv_rmssd_milli"),
+        spo2_percentage=recovery_data.get("spo2_percentage"),
+        skin_temp_celsius=recovery_data.get("skin_temp_celsius"),
+        recorded_at=datetime.fromisoformat(
+            recovery_data["cycle_date"].replace("Z", "+00:00")
+        ).replace(tzinfo=None)
+        if recovery_data.get("cycle_date")
+        else None,
+        payload=payload,
+    )
+    db.add(sample)
+
     # Store whoop_user_id if not set
     if not user.whoop_user_id and recovery_data.get("user_id"):
         user.whoop_user_id = str(recovery_data["user_id"])
-        await db.commit()
+        await db.flush()
 
     recommendation = await service.get_recovery_recommendation(recovery_data)
     recovery_score = recovery_data.get("recovery_score", 0.5)
@@ -201,7 +271,7 @@ async def _handle_recovery_event(payload: dict, user: User, db: AsyncSession):
                         target.target_distance_km * 0.7, 1
                     )
 
-        await db.commit()
+        await db.flush()
         logger.info(
             "Adjusted workout %s to %s based on Whoop recovery",
             target.id,

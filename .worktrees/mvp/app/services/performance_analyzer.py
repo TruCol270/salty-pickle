@@ -2,10 +2,18 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, false
+from sqlalchemy import select, and_
 
-from app.models import User, TrainingPlan, PlannedWorkout, CompletedWorkout, PlanStatus
-from app.services.google_calendar import GoogleCalendarService
+from app.models import (
+    User,
+    TrainingPlan,
+    PlannedWorkout,
+    CompletedWorkout,
+    PlanStatus,
+    AnalyticsEvent,
+    PlanPerformanceSnapshot,
+    WhoopRecoverySample,
+)
 from app.services.whoop import WhoopService
 
 
@@ -227,6 +235,18 @@ class PerformanceAnalyzer:
 
         return adjustments[:5]
 
+    async def _average_match_score(self, matches: list[dict]) -> Optional[float]:
+        scored: list[float] = []
+        for match in matches:
+            score = await self.calculate_performance_score(
+                match["planned"], match["completed"]
+            )
+            if score is not None:
+                scored.append(score)
+        if not scored:
+            return None
+        return sum(scored) / len(scored)
+
     async def run_daily_performance_check(self, user: User) -> dict:
         """Main job: sync, match, and adjust."""
         from app.services.workout_sync import WorkoutSyncService
@@ -267,6 +287,60 @@ class PerformanceAnalyzer:
             recovery_recommendation = await whoop_service.get_recovery_recommendation(
                 whoop_recovery
             )
+            self.db.add(
+                WhoopRecoverySample(
+                    user_id=user.id,
+                    whoop_user_id=user.whoop_user_id,
+                    source="api",
+                    source_id=str(whoop_recovery.get("cycle_id", "")) or None,
+                    cycle_id=str(whoop_recovery.get("cycle_id", "")) or None,
+                    recovery_score=int(
+                        (whoop_recovery.get("recovery_score", 0.0) or 0.0) * 100
+                    ),
+                    resting_heart_rate=whoop_recovery.get("resting_heart_rate"),
+                    hrv_rmssd_milli=whoop_recovery.get("hrv_rmssd_milli"),
+                    spo2_percentage=whoop_recovery.get("spo2_percentage"),
+                    skin_temp_celsius=whoop_recovery.get("skin_temp_celsius"),
+                    payload=whoop_recovery,
+                )
+            )
+
+        active_plan_ids = sorted({match["planned"].plan_id for match in matches})
+        avg_score = await self._average_match_score(matches)
+
+        self.db.add(
+            AnalyticsEvent(
+                user_id=user.id,
+                plan_id=active_plan_ids[0] if active_plan_ids else None,
+                event_name="performance_check.completed",
+                source="scheduler",
+                payload={
+                    "synced": len(synced),
+                    "matched": len(matches),
+                    "adjustments": len(adjustments),
+                    "average_score": avg_score,
+                    "recovery_recommendation": recovery_recommendation,
+                },
+            )
+        )
+
+        for plan_id in active_plan_ids:
+            plan_matches = [match for match in matches if match["planned"].plan_id == plan_id]
+            plan_avg_score = await self._average_match_score(plan_matches)
+            self.db.add(
+                PlanPerformanceSnapshot(
+                    user_id=user.id,
+                    plan_id=plan_id,
+                    matched_workouts=len(plan_matches),
+                    average_score=plan_avg_score,
+                    adjustments_count=len(adjustments),
+                    recovery_recommendation=recovery_recommendation,
+                    metadata_json={
+                        "whoop_recovery": whoop_recovery,
+                    },
+                )
+            )
+        await self.db.commit()
 
         return {
             "synced": len(synced),

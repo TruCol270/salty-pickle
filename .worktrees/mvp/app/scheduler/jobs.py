@@ -3,17 +3,19 @@ from datetime import datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy import select
+from sqlalchemy import select, delete, update
 
 from app.database import AsyncSessionLocal
+from app.config import get_settings
 from app.services.workout_sync import WorkoutSyncService
 from app.services.performance_analyzer import PerformanceAnalyzer
 from app.agents.adjustment_agent import WorkoutAdjustmentAgent
-from app.models import User
+from app.models import User, ProviderWebhookEvent, CompletedWorkout
 
 logger = logging.getLogger(__name__)
 
 scheduler = AsyncIOScheduler()
+settings = get_settings()
 
 
 async def sync_workouts_job():
@@ -85,6 +87,33 @@ async def performance_check_job():
                 )
 
 
+async def prune_raw_payloads_job():
+    """Reduce storage costs by trimming old raw payload fields."""
+    cutoff = datetime.utcnow() - timedelta(days=settings.raw_payload_retention_days)
+    async with AsyncSessionLocal() as db:
+        # Keep canonical metrics while removing large source payload blobs.
+        await db.execute(
+            update(CompletedWorkout)
+            .where(
+                CompletedWorkout.created_at < cutoff,
+                CompletedWorkout.raw_data.isnot(None),
+            )
+            .values(raw_data=None)
+        )
+
+        # Webhook events are replay/debug artifacts; remove old records.
+        await db.execute(
+            delete(ProviderWebhookEvent).where(
+                ProviderWebhookEvent.received_at < cutoff,
+            )
+        )
+        await db.commit()
+        logger.info(
+            "Raw payload cleanup complete (retention_days=%s)",
+            settings.raw_payload_retention_days,
+        )
+
+
 def setup_scheduler():
     scheduler.add_job(
         sync_workouts_job,
@@ -104,6 +133,13 @@ def setup_scheduler():
         performance_check_job,
         CronTrigger(hour=6, minute=30),
         id="performance_check",
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        prune_raw_payloads_job,
+        CronTrigger(hour=3, minute=15),
+        id="prune_raw_payloads",
         replace_existing=True,
     )
 

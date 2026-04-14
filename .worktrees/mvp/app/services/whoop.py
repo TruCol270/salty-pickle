@@ -263,6 +263,9 @@ class WhoopService:
             "sleep_performance": sleep_performance,
             "resting_heart_rate": score.get("resting_heart_rate"),
             "hrv_rmssd_milli": score.get("hrv_rmssd_milli"),
+            "cycle_id": data.get("cycle_id"),
             "cycle_date": data.get("created_at"),
             "user_id": payload.get("user_id"),
+            "spo2_percentage": score.get("spo2_percentage"),
+            "skin_temp_celsius": score.get("skin_temp_celsius"),
         }

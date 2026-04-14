@@ -5,7 +5,14 @@ import json
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
-from app.models import User, CompletedWorkout, PlannedWorkout, WorkoutSource
+from app.models import (
+    User,
+    CompletedWorkout,
+    PlannedWorkout,
+    WorkoutSource,
+    StravaSyncRun,
+    SyncRunStatus,
+)
 from app.services.strava import StravaService
 
 
@@ -16,53 +23,75 @@ class WorkoutSyncService:
     async def sync_from_strava(
         self, user: User, after: Optional[datetime] = None
     ) -> list[CompletedWorkout]:
-        service = StravaService(self.db)
-        user = await service.refresh_token_if_needed(user)
-
-        activities = await service.get_activities(
-            access_token=user.strava_access_token,
-            after=after,
+        sync_run = StravaSyncRun(
+            user_id=user.id,
+            status=SyncRunStatus.STARTED,
+            started_at=datetime.utcnow(),
+            after_cursor=after,
         )
+        self.db.add(sync_run)
+        await self.db.flush()
 
-        synced = []
-        for activity in activities:
-            result = await self.db.execute(
-                select(CompletedWorkout).where(
-                    and_(
-                        CompletedWorkout.user_id == user.id,
-                        CompletedWorkout.source_id == str(activity["id"]),
+        service = StravaService(self.db)
+        try:
+            user = await service.refresh_token_if_needed(user)
+
+            activities = await service.get_activities(
+                access_token=user.strava_access_token,
+                after=after,
+            )
+            sync_run.activities_fetched = len(activities)
+
+            synced = []
+            for activity in activities:
+                result = await self.db.execute(
+                    select(CompletedWorkout).where(
+                        and_(
+                            CompletedWorkout.user_id == user.id,
+                            CompletedWorkout.source_id == str(activity["id"]),
+                        )
                     )
                 )
-            )
-            if result.scalar_one_or_none():
-                continue
+                if result.scalar_one_or_none():
+                    continue
 
-            start_time = datetime.fromisoformat(
-                activity["start_date"].replace("Z", "+00:00")
-            ).replace(tzinfo=None)
-            end_time = datetime.fromisoformat(
-                activity["start_date_local"].replace("Z", "+00:00")
-            ).replace(tzinfo=None) + timedelta(seconds=activity.get("elapsed_time", 0))
+                start_time = datetime.fromisoformat(
+                    activity["start_date"].replace("Z", "+00:00")
+                ).replace(tzinfo=None)
+                end_time = datetime.fromisoformat(
+                    activity["start_date_local"].replace("Z", "+00:00")
+                ).replace(tzinfo=None) + timedelta(seconds=activity.get("elapsed_time", 0))
 
-            workout = CompletedWorkout(
-                user_id=user.id,
-                source=WorkoutSource.STRAVA,
-                source_id=str(activity["id"]),
-                start_time=start_time,
-                end_time=end_time,
-                actual_distance_km=activity.get("distance", 0) / 1000,
-                actual_duration_seconds=activity.get("elapsed_time"),
-                actual_elevation_m=activity.get("total_elevation_gain"),
-                average_heart_rate=activity.get("average_heartrate"),
-                max_heart_rate=activity.get("max_heartrate"),
-                raw_data=json.dumps(activity),
-            )
+                workout = CompletedWorkout(
+                    user_id=user.id,
+                    source=WorkoutSource.STRAVA,
+                    source_id=str(activity["id"]),
+                    start_time=start_time,
+                    end_time=end_time,
+                    actual_distance_km=activity.get("distance", 0) / 1000,
+                    actual_duration_seconds=activity.get("elapsed_time"),
+                    actual_elevation_m=activity.get("total_elevation_gain"),
+                    average_heart_rate=activity.get("average_heartrate"),
+                    max_heart_rate=activity.get("max_heartrate"),
+                    raw_data=json.dumps(activity),
+                )
 
-            self.db.add(workout)
-            synced.append(workout)
+                self.db.add(workout)
+                synced.append(workout)
 
-        await self.db.commit()
-        return synced
+            sync_run.status = SyncRunStatus.SUCCESS
+            sync_run.finished_at = datetime.utcnow()
+            sync_run.workouts_created = len(synced)
+            await self.db.commit()
+            return synced
+        except Exception as exc:
+            await self.db.rollback()
+            sync_run.status = SyncRunStatus.FAILED
+            sync_run.error_message = str(exc)
+            sync_run.finished_at = datetime.utcnow()
+            self.db.add(sync_run)
+            await self.db.commit()
+            raise
 
     async def calculate_performance_score(self, workout: CompletedWorkout) -> float:
         if not workout.planned_workout_id:
