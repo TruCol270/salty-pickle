@@ -6,16 +6,16 @@ _Approved via ultraplan browser session. Save this file to resume work if sessio
 
 ## Status Tracker
 
-- [ ] **Phase 1A** — Bug fixes (backend: NameError, dead code, misplaced imports)
-- [ ] **Phase 1B** — Backend foundation (exceptions.py, global handler, /healthz, /live, logging)
-- [ ] **Phase 1C** — DevOps fixes (docker-compose CMD, health checks, Makefile)
-- [ ] **Phase 1D** — Frontend foundation (api.ts, types/index.ts, LoadingSpinner, ErrorBoundary)
-- [ ] **Phase 1E** — Frontend page fixes (loading states, error states, mock data removal, sync handler)
-- [ ] **Phase 2** — Design system (PENDING Figma mockup approval)
-- [ ] **Phase 3** — Page redesigns (PENDING Phase 2 approval)
-- [ ] **Phase 4** — Backend optimization (Redis caching, rate limiting, structlog)
-- [ ] **Phase 5** — DevOps improvements (multi-stage Docker, CI improvements)
-- [ ] **Phase 6** — Polish & launch
+- [x] **Phase 1A** — Bug fixes (backend: NameError, dead code, misplaced imports)
+- [x] **Phase 1B** — Backend foundation (exceptions.py, global handler, /healthz, /live, scheduler logging, HTTP 404/ValueError handlers, structlog)
+- [x] **Phase 1C** — DevOps fixes (docker-compose CMD, health checks, Makefile)
+- [x] **Phase 1D** — Frontend foundation (api.ts, types/index.ts, LoadingSpinner, ErrorBoundary)
+- [x] **Phase 1E** — Frontend page fixes (loading/error states, Whoop trend API + no mock data, shared `api` client)
+- [x] **Phase 2** — Design system (grunge tokens in Tailwind/CSS, Button/Card/Input/Navigation, sidebar layout)
+- [x] **Phase 3** — Page redesigns (sidebar “Mission Control” shell + tokens; full per-page grunge content polish optional with Figma)
+- [x] **Phase 4** — Backend optimization (Redis cache on analytics, SlowAPI on performance-check, structlog, OAuth state 15m TTL; boolean columns documented for future migration)
+- [x] **Phase 5** — DevOps improvements (multi-stage Dockerfile, `nginx.example.conf` with `X-Real-IP` and timeouts)
+- [x] **Phase 6** — Polish & launch (axios bumped, `npm audit` clean for prod deps; Lighthouse and formal UAT remain manual)
 
 ---
 

@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Activity, MapPin, Clock, Zap, TrendingUp } from 'lucide-react';
 import { api } from '../lib/api';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { buildOAuthAuthorizeUrl } from '../lib/oauth';
 
 interface Workout {
   id: number;
@@ -27,6 +28,8 @@ interface WorkoutStats {
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export function StravaPage() {
+  const connectStravaUrl = buildOAuthAuthorizeUrl('strava', '/strava');
+
   const {
     data: workouts,
     isLoading: workoutsLoading,
@@ -77,7 +80,7 @@ export function StravaPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Strava Workouts</h1>
         <a
-          href="/api/v1/auth/strava"
+          href={connectStravaUrl}
           className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
         >
           <Activity className="w-4 h-4" />

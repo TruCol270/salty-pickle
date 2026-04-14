@@ -204,7 +204,8 @@ async def privacy_policy():
 
 @app.get("/redirect", response_class=HTMLResponse)
 async def oauth_redirect():
-    return HTMLResponse(content=REDIRECT_HTML)
+    dash = settings.frontend_base_url.rstrip("/") + "/"
+    return HTMLResponse(content=_redirect_page_html(dash))
 
 
 PRIVACY_POLICY_HTML = """<!DOCTYPE html>
@@ -275,20 +276,21 @@ PRIVACY_POLICY_HTML = """<!DOCTYPE html>
 </html>"""
 
 
-REDIRECT_HTML = """<!DOCTYPE html>
+def _redirect_page_html(dashboard_href: str) -> str:
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Connected – Salty Pickle</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f0f4ff; }
-    .card { background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); padding: 48px; text-align: center; max-width: 420px; width: 100%; }
-    .icon { font-size: 3rem; margin-bottom: 16px; }
-    h1 { font-size: 1.5rem; font-weight: 700; color: #1a1a1a; margin: 0 0 8px; }
-    p { color: #666; margin: 0 0 24px; }
-    a { display: inline-block; background: #4f46e5; color: white; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; }
-    a:hover { background: #4338ca; }
+    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f0f4ff; }}
+    .card {{ background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); padding: 48px; text-align: center; max-width: 420px; width: 100%; }}
+    .icon {{ font-size: 3rem; margin-bottom: 16px; }}
+    h1 {{ font-size: 1.5rem; font-weight: 700; color: #1a1a1a; margin: 0 0 8px; }}
+    p {{ color: #666; margin: 0 0 24px; }}
+    a {{ display: inline-block; background: #4f46e5; color: white; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; }}
+    a:hover {{ background: #4338ca; }}
   </style>
 </head>
 <body>
@@ -296,7 +298,7 @@ REDIRECT_HTML = """<!DOCTYPE html>
     <div class="icon">✅</div>
     <h1>Connected!</h1>
     <p>Your account has been successfully connected to Salty Pickle.</p>
-    <a href="http://localhost:3000">Go to Dashboard</a>
+    <a href="{dashboard_href}">Go to Dashboard</a>
   </div>
 </body>
 </html>"""

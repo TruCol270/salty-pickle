@@ -7,6 +7,13 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import {
+  clearAuthSession,
+  consumeAuthFromUrl,
+  persistAuthSession,
+  readStoredToken,
+  readStoredUserId,
+} from '../lib/authSession';
 
 interface AuthContextValue {
   isAuthenticated: boolean;
@@ -15,78 +22,32 @@ interface AuthContextValue {
   logout: () => void;
 }
 
-const USER_ID_KEY = 'user_id';
-
-/** Read `sub` from a JWT payload (client-side only; no signature verification). */
-function parseJwtSub(token: string): number | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(
-      atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'))
-    ) as { sub?: string | number };
-    const sub = payload.sub;
-    if (sub == null) return null;
-    return typeof sub === 'string' ? parseInt(sub, 10) : Number(sub);
-  } catch {
-    return null;
-  }
-}
-
-function readStoredUserId(): number | null {
-  const raw = sessionStorage.getItem(USER_ID_KEY);
-  if (!raw) return null;
-  const n = parseInt(raw, 10);
-  return Number.isFinite(n) ? n : null;
-}
-
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() =>
-    sessionStorage.getItem('access_token')
-  );
+  const [token, setToken] = useState<string | null>(() => readStoredToken());
   const [userId, setUserId] = useState<number | null>(() => readStoredUserId());
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlToken = params.get('access_token');
-    if (urlToken) {
-      sessionStorage.setItem('access_token', urlToken);
-      setToken(urlToken);
-      const fromJwt = parseJwtSub(urlToken);
-      if (fromJwt != null) {
-        sessionStorage.setItem(USER_ID_KEY, String(fromJwt));
-        setUserId(fromJwt);
-      }
-      params.delete('access_token');
-      const qs = params.toString();
-      window.history.replaceState(
-        {},
-        '',
-        `${window.location.pathname}${qs ? `?${qs}` : ''}`
+    const authFromUrl = consumeAuthFromUrl();
+    if (authFromUrl) {
+      const resolvedUserId = persistAuthSession(
+        authFromUrl.token,
+        authFromUrl.userId
       );
+      setToken(authFromUrl.token);
+      setUserId(resolvedUserId);
     }
   }, []);
 
   const login = useCallback((newToken: string, nextUserId?: number) => {
-    sessionStorage.setItem('access_token', newToken);
+    const resolvedUserId = persistAuthSession(newToken, nextUserId ?? null);
     setToken(newToken);
-    if (nextUserId !== undefined) {
-      sessionStorage.setItem(USER_ID_KEY, String(nextUserId));
-      setUserId(nextUserId);
-    } else {
-      const fromJwt = parseJwtSub(newToken);
-      if (fromJwt != null) {
-        sessionStorage.setItem(USER_ID_KEY, String(fromJwt));
-        setUserId(fromJwt);
-      }
-    }
+    setUserId(resolvedUserId);
   }, []);
 
   const logout = useCallback(() => {
-    sessionStorage.removeItem('access_token');
-    sessionStorage.removeItem(USER_ID_KEY);
+    clearAuthSession();
     setToken(null);
     setUserId(null);
   }, []);

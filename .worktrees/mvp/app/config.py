@@ -1,6 +1,7 @@
 import json
 import warnings
 from functools import lru_cache
+from urllib.parse import urlparse
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -8,19 +9,30 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 def parse_allowed_origins_to_list(raw: str) -> list[str]:
     """ALLOWED_ORIGINS may be a comma-separated list or a JSON array string (Railway-friendly)."""
+    default_origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
     s = (raw or "").strip()
     if not s:
-        return ["http://localhost:3000"]
+        return default_origins
     if s.startswith("["):
         try:
             data = json.loads(s)
             if isinstance(data, list):
                 out = [str(x).strip() for x in data if str(x).strip()]
-                return out or ["http://localhost:3000"]
+                return out or default_origins
         except json.JSONDecodeError:
             pass
     parts = [x.strip() for x in s.split(",") if x.strip()]
-    return parts or ["http://localhost:3000"]
+    return parts or default_origins
+
+
+def _is_local_netloc(netloc: str) -> bool:
+    host = netloc.split(":", 1)[0].lower()
+    return host in {"localhost", "127.0.0.1"}
 
 
 class Settings(BaseSettings):
@@ -44,10 +56,14 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24 * 7
 
     debug: bool = False
+    app_public_url: str = "http://localhost:5173"
+    api_public_url: str = "http://localhost:8080"
     # Must stay a plain str so EnvSettingsSource does not require JSON for list fields.
     # Use comma-separated URLs or a JSON array string; see parse_allowed_origins_to_list.
-    allowed_origins: str = Field(default="http://localhost:3000")
-    frontend_base_url: str = "http://localhost:3000"
+    allowed_origins: str = Field(
+        default="http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
+    )
+    frontend_base_url: str = "http://localhost:5173"
 
     @field_validator("allowed_origins", mode="after")
     @classmethod
@@ -55,13 +71,16 @@ class Settings(BaseSettings):
         """Store JSON-array env values as comma-separated for a single predictable format."""
         s = v.strip()
         if not s:
-            return "http://localhost:3000"
+            return "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
         if s.startswith("["):
             try:
                 data = json.loads(s)
                 if isinstance(data, list):
                     joined = ",".join(str(x).strip() for x in data if str(x).strip())
-                    return joined or "http://localhost:3000"
+                    return (
+                        joined
+                        or "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
+                    )
             except json.JSONDecodeError:
                 pass
         return s
@@ -98,4 +117,21 @@ def get_settings() -> Settings:
         )
     if s.debug and s.secret_key == "change-me-in-production":
         warnings.warn("Using default SECRET_KEY — not safe for production", stacklevel=2)
+    if not s.debug:
+        frontend_netloc = urlparse(s.frontend_base_url).netloc
+        if _is_local_netloc(frontend_netloc):
+            raise RuntimeError(
+                "FRONTEND_BASE_URL points to localhost/127.0.0.1 in non-debug mode. "
+                "Set FRONTEND_BASE_URL to your public frontend origin."
+            )
+        local_origins = []
+        for origin in parse_allowed_origins_to_list(s.allowed_origins):
+            netloc = urlparse(origin).netloc
+            if _is_local_netloc(netloc):
+                local_origins.append(origin)
+        if local_origins:
+            raise RuntimeError(
+                "ALLOWED_ORIGINS contains localhost/127.0.0.1 in non-debug mode. "
+                "Set ALLOWED_ORIGINS to public origins only."
+            )
     return s

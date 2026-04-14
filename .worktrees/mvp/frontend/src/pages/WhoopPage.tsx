@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Heart, Battery, Moon, Activity, TrendingUp, AlertCircle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../lib/api';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { requestOAuthAuthorizeUrl } from '../lib/oauth';
 import type { WhoopRecoveryPoint } from '../types';
 
 interface RecoveryData {
@@ -55,6 +57,25 @@ function RecommendationBadge({ recommendation }: { recommendation: string }) {
 }
 
 export function WhoopPage() {
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const beginWhoopConnect = async () => {
+    setConnectError(null);
+    setIsConnecting(true);
+    try {
+      const authUrl = await requestOAuthAuthorizeUrl('whoop', '/whoop');
+      window.location.assign(authUrl);
+    } catch (e) {
+      const msg =
+        e && typeof e === 'object' && 'message' in e
+          ? String((e as { message?: string }).message)
+          : 'Could not start Whoop OAuth flow';
+      setConnectError(msg);
+      setIsConnecting(false);
+    }
+  };
+
   const {
     data,
     isLoading,
@@ -103,19 +124,26 @@ export function WhoopPage() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-gray-900">Whoop Recovery</h1>
+        {connectError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+            {connectError}
+          </div>
+        )}
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Connect Whoop</h2>
           <p className="text-gray-500 mb-6">
             {data?.message || 'Link your Whoop account to track recovery and get personalized training recommendations.'}
           </p>
-          <a
-            href="/auth/whoop/authorize"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+          <button
+            type="button"
+            onClick={() => void beginWhoopConnect()}
+            disabled={isConnecting}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 disabled:opacity-70 text-white rounded-lg font-medium transition-colors"
           >
             <Heart className="w-5 h-5" />
-            Connect Whoop
-          </a>
+            {isConnecting ? 'Redirecting...' : 'Connect Whoop'}
+          </button>
         </div>
       </div>
     );
@@ -134,13 +162,15 @@ export function WhoopPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Whoop Recovery</h1>
-        <a
-          href="/auth/whoop/authorize"
-          className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+        <button
+          type="button"
+          onClick={() => void beginWhoopConnect()}
+          disabled={isConnecting}
+          className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-70 text-white rounded-lg font-medium transition-colors"
         >
           <Heart className="w-4 h-4" />
-          Reconnect
-        </a>
+          {isConnecting ? 'Redirecting...' : 'Reconnect'}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

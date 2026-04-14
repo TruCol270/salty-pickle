@@ -1,9 +1,8 @@
 import { Activity, Heart, Calendar, Zap } from 'lucide-react';
+import { buildOAuthAuthorizeUrl } from '../lib/oauth';
 
 export function LandingPage() {
-  const connectUrl = `/auth/strava/authorize?redirect_url=${encodeURIComponent(
-    `${window.location.origin}/integrations`
-  )}`;
+  const connectUrl = buildOAuthAuthorizeUrl('strava', '/integrations');
 
   return (
     <div className="min-h-screen bg-grunge-black flex flex-col items-center justify-center px-6 text-center">

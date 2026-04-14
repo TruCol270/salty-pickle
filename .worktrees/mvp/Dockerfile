@@ -41,5 +41,6 @@ USER appuser
 ENV PORT=8080
 EXPOSE 8080
 
+# Apply DB schema then start API. Fails fast if DATABASE_URL is wrong or migrations break.
 # Shell only for ${PORT}; `exec` replaces sh so uvicorn is PID 1 and receives SIGTERM.
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

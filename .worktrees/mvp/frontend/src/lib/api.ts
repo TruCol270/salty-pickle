@@ -1,6 +1,8 @@
 import axios from 'axios';
+import { clearAuthSession, readStoredToken } from './authSession';
+import { getApiBaseUrl } from './env';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
+const baseURL = getApiBaseUrl();
 
 export const api = axios.create({
   baseURL,
@@ -8,7 +10,7 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('access_token');
+  const token = readStoredToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -19,8 +21,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      sessionStorage.removeItem('access_token');
-      sessionStorage.removeItem('user_id');
+      clearAuthSession();
       const path = window.location.pathname;
       if (path !== '/login' && !path.startsWith('/login')) {
         window.location.assign('/login');

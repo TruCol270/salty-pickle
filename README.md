@@ -90,11 +90,11 @@ REDIS_URL=redis://localhost:6379/0
 
 STRAVA_CLIENT_ID=your_strava_client_id
 STRAVA_CLIENT_SECRET=your_strava_client_secret
-STRAVA_REDIRECT_URI=http://localhost:8000/auth/strava/callback
+STRAVA_REDIRECT_URI=http://localhost:8080/auth/strava/callback
 
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
+GOOGLE_REDIRECT_URI=http://localhost:8080/auth/google/callback
 
 OPENAI_API_KEY=your_openai_api_key
 SECRET_KEY=your_random_secret_key
@@ -111,14 +111,14 @@ docker compose up -d
 docker compose logs -f
 ```
 
-- API: http://localhost:8000
+- API: http://localhost:8080
 - Frontend: http://localhost:3000
-- API Docs: http://localhost:8000/docs
+- API Docs: http://localhost:8080/docs
 
 ### Connecting Integrations
 
-1. **Strava**: Visit `http://localhost:8000/auth/strava/authorize`
-2. **Google Calendar**: Visit `http://localhost:8000/auth/google/authorize`
+1. **Strava**: Visit `http://localhost:8080/auth/strava/authorize`
+2. **Google Calendar**: Visit `http://localhost:8080/auth/google/authorize`
 
 ### Creating a Training Plan
 

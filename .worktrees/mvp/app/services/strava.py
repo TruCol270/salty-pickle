@@ -31,6 +31,7 @@ class StravaService:
         return f"{self.AUTH_URL}?{query}"
 
     async def exchange_code_for_token(self, code: str) -> dict:
+        # Strava requires redirect_uri to match the one used in /oauth/authorize.
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 self.TOKEN_URL,
@@ -39,6 +40,7 @@ class StravaService:
                     "client_secret": settings.strava_client_secret,
                     "code": code,
                     "grant_type": "authorization_code",
+                    "redirect_uri": settings.strava_redirect_uri,
                 },
             )
             response.raise_for_status()

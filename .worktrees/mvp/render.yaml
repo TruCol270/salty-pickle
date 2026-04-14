@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: salty-pickle-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /live
+    envVars:
+      - key: DEBUG
+        value: "false"
+      - key: ENABLE_SCHEDULER
+        value: "false"
+
+  - type: worker
+    name: salty-pickle-worker
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: python worker_main.py
+    autoDeploy: true
+    envVars:
+      - key: DEBUG
+        value: "false"
+      - key: ENABLE_SCHEDULER
+        value: "true"
