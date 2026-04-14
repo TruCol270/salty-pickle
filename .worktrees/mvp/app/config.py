@@ -31,11 +31,11 @@ class Settings(BaseSettings):
 
     strava_client_id: str = ""
     strava_client_secret: str = ""
-    strava_redirect_uri: str = "http://localhost:8000/auth/strava/callback"
+    strava_redirect_uri: str = "http://localhost:8080/auth/strava/callback"
 
     google_client_id: str = ""
     google_client_secret: str = ""
-    google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
+    google_redirect_uri: str = "http://localhost:8080/auth/google/callback"
 
     openai_api_key: str = ""
 
@@ -66,6 +66,13 @@ class Settings(BaseSettings):
                 pass
         return s
 
+    @field_validator("raw_payload_retention_days", mode="after")
+    @classmethod
+    def validate_raw_payload_retention_days(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError("RAW_PAYLOAD_RETENTION_DAYS must be at least 1")
+        return v
+
     enable_scheduler: bool = False
 
     # If set, POST /auth/token/bootstrap with header X-Bootstrap-Key can mint a JWT (dev/ops only).
@@ -76,7 +83,9 @@ class Settings(BaseSettings):
 
     whoop_client_id: str = ""
     whoop_client_secret: str = ""
-    whoop_redirect_uri: str = "http://localhost:8000/auth/whoop/callback"
+    whoop_redirect_uri: str = "http://localhost:8080/auth/whoop/callback"
+
+    raw_payload_retention_days: int = 90
 
 
 @lru_cache

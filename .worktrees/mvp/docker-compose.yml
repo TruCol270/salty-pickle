@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8080:8080"
     env_file:
       - .env
     environment:
@@ -21,7 +21,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/live')",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/live')",
         ]
       interval: 10s
       timeout: 5s
