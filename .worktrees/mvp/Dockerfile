@@ -42,5 +42,6 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Apply DB schema then start API. Fails fast if DATABASE_URL is wrong or migrations break.
+# If Railway “Custom Start Command” overrides this, only `uvicorn` may run — use releaseCommand in railway.toml or paste the full shell line below into Railway.
 # Shell only for ${PORT}; `exec` replaces sh so uvicorn is PID 1 and receives SIGTERM.
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+CMD ["sh", "-c", "echo '[startup] alembic upgrade head' && alembic upgrade head && echo '[startup] migrations ok' && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
