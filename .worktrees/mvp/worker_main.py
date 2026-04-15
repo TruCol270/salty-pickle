@@ -5,6 +5,11 @@ Deploy as a separate Railway service with:
   (same DATABASE_URL, REDIS_URL, and API keys as the web service)
 """
 
+import os
+
+# Must run before any import of app.config / app.database (they call get_settings() at import time).
+os.environ.setdefault("WORKER_SERVICE", "1")
+
 import asyncio
 import logging
 import signal

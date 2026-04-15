@@ -93,6 +93,8 @@ class Settings(BaseSettings):
         return v
 
     enable_scheduler: bool = False
+    # Set automatically by worker_main.py before imports; also overridable via WORKER_SERVICE=1 in Railway.
+    worker_service: bool = False
 
     # If set, POST /auth/token/bootstrap with header X-Bootstrap-Key can mint a JWT (dev/ops only).
     auth_bootstrap_key: str = ""
@@ -117,7 +119,9 @@ def get_settings() -> Settings:
         )
     if s.debug and s.secret_key == "change-me-in-production":
         warnings.warn("Using default SECRET_KEY — not safe for production", stacklevel=2)
-    if not s.debug:
+    # OAuth redirect allowlists only matter for the web API. Scheduler worker does not serve /auth.
+    _skip_public_origin_check = s.worker_service or s.enable_scheduler
+    if not s.debug and not _skip_public_origin_check:
         frontend_netloc = urlparse(s.frontend_base_url).netloc
         if _is_local_netloc(frontend_netloc):
             raise RuntimeError(
