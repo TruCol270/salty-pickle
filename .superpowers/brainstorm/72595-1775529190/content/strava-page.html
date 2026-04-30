@@ -1,0 +1,27 @@
+<h2>Strava Page Design</h2>
+<p class="subtitle">What should the /strava page show?</p>
+
+<div class="section">
+  <h3>Data Available from Backend</h3>
+  <ul>
+    <li><strong>Workouts</strong> — type, distance, duration, pace, heartrate, elevation from Strava</li>
+    <li><strong>Performance metrics</strong> — weekly distances, workouts by type, avg pace</li>
+  </ul>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="rich" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Rich Charts + Stats</h3>
+      <p>Weekly bar chart, workout type breakdown pie, distance trend line, pace histogram. Full analytics.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="simple" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Simple List + Summary</h3>
+      <p>Recent workout list with key stats at top. Less visual, more functional. Faster to build.</p>
+    </div>
+  </div>
+</div>

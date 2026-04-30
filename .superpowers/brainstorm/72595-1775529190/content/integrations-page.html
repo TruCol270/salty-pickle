@@ -1,0 +1,28 @@
+<h2>Integrations Page</h2>
+<p class="subtitle">How should we show OAuth connection status?</p>
+
+<div class="section">
+  <h3>Three Integrations</h3>
+  <ul>
+    <li><strong>Strava</strong> — for workout sync</li>
+    <li><strong>Google Calendar</strong> — for pushing planned workouts</li>
+    <li><strong>Whoop</strong> — for recovery data</li>
+  </ul>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="dedicated" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Dedicated /integrations Page</h3>
+      <p>Card for each service showing connected/not connected status with Connect/Disconnect buttons.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="inline" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Inline in Dashboard</h3>
+      <p>Small status badges in dashboard header. "Strava ✓", "Whoop ○", "Google ✓". Quick overview.</p>
+    </div>
+  </div>
+</div>

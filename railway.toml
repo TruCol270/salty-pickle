@@ -1,7 +1,11 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+dockerfilePath = "./Dockerfile"
 
 [deploy]
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
+healthcheckPath = "/live"
+# Runs in Railway’s network against DATABASE_URL before new revision serves traffic.
+# Use this if the dashboard “Custom Start Command” overrides Docker CMD and skips migrations.
+releaseCommand = "alembic upgrade head"

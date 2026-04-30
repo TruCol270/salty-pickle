@@ -1,0 +1,40 @@
+<h2>Frontend UI Expansion</h2>
+<p class="subtitle">Current state: Dashboard, CreatePlan, Preferences, PlanEditor pages exist but lack depth. Let's build out the data views.</p>
+
+<div class="section">
+  <h3>Current Pages</h3>
+  <ul>
+    <li><strong>/</strong> — Dashboard with plan progress stats (needs Strava/Whoop data wired up)</li>
+    <li><strong>/create</strong> — Race form + AI plan generation (mostly done)</li>
+    <li><strong>/preferences</strong> — User prefs questionnaire (mostly done)</li>
+    <li><strong>/plans/:id</strong> — Plan editor (needs enhancement)</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>Missing Pages</h3>
+  <ul>
+    <li><strong>/strava</strong> — Strava workout history, charts, stats</li>
+    <li><strong>/whoop</strong> — Recovery score, HRV, RHR trends</li>
+    <li><strong>/integrations</strong> — OAuth connection status for Strava, Google, Whoop</li>
+  </ul>
+</div>
+
+<h3>Navigation Structure</h3>
+
+<div class="options">
+  <div class="option" data-choice="sidebar" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Sidebar Navigation</h3>
+      <p>Left sidebar with icons + labels. Collapsible on mobile. Good for many pages.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tabs" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Top Tab Navigation</h3>
+      <p>Tabs below header: Dashboard | Strava | Whoop | Plan. Simpler, less screen real estate.</p>
+    </div>
+  </div>
+</div>

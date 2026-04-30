@@ -1,0 +1,29 @@
+<h2>Whoop Page Design</h2>
+<p class="subtitle">What should the /whoop page show?</p>
+
+<div class="section">
+  <h3>Data Available from Backend</h3>
+  <ul>
+    <li><strong>Recovery score</strong> — 0-100% (color coded: red <40%, yellow 40-70%, green >70%)</li>
+    <li><strong>HRV</strong> — hrv_rmssd_milli</li>
+    <li><strong>RHR</strong> — resting_heart_rate</li>
+    <li><strong>Sleep data</strong> — hours, efficiency (via webhooks)</li>
+  </ul>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="recovery-focus" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Recovery-First Dashboard</h3>
+      <p>Large recovery score gauge, today's recommendation (push/maintain/easy/rest), HRV/RHR trends below.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="trends" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Trends + History</h3>
+      <p>30-day recovery trend line, HRV/RHR correlation chart, sleep quality breakdown. Less gauge, more data.</p>
+    </div>
+  </div>
+</div>
