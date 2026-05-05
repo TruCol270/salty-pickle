@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 
@@ -57,7 +57,10 @@ class TrainingPlanResponse(TrainingPlanBase):
     user_id: int
     status: str
     current_week_number: int
-    workouts: list[PlannedWorkoutResponse] = []
+    workouts: list[PlannedWorkoutResponse] = Field(
+        default_factory=list,
+        validation_alias="planned_workouts",
+    )
     created_at: datetime
 
     model_config = {"from_attributes": True}

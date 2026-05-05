@@ -13,8 +13,10 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/salty_pickle
       - REDIS_URL=redis://redis:6379/0
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     healthcheck:
       test:
         [

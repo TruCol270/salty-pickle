@@ -2,8 +2,9 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from sqlalchemy.orm import selectinload
 
-from app.models import CompletedWorkout, TrainingPlan
+from app.models import CompletedWorkout, PlannedWorkout, TrainingPlan
 
 
 class AnalyticsService:
@@ -79,7 +80,13 @@ class AnalyticsService:
         plan_id: int,
     ) -> dict:
         result = await self.db.execute(
-            select(TrainingPlan).where(TrainingPlan.id == plan_id)
+            select(TrainingPlan)
+            .options(
+                selectinload(TrainingPlan.planned_workouts).selectinload(
+                    PlannedWorkout.completed_workout
+                )
+            )
+            .where(TrainingPlan.id == plan_id)
         )
         plan = result.scalar_one_or_none()
 

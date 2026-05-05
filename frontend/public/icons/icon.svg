@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Salty Pickle">
+  <rect width="512" height="512" rx="112" fill="#0a0e27"/>
+  <path d="M326 78c72 38 112 130 87 216-29 100-127 158-219 129-78-25-119-107-95-185 29-93 126-125 176-92 20 13 20 40 1 53-24 16-68 13-86 65-13 37 6 76 45 89 49 16 101-19 117-77 19-67-8-137-59-165-16-9-16-26 0-34 10-5 22-5 33 1Z" fill="#ccff00"/>
+  <path d="M161 369c-18-17-29-41-29-68 0-57 45-103 101-103 30 0 56 13 75 34" fill="none" stroke="#00ffff" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="189" cy="165" r="18" fill="#ff00ff"/>
+  <circle cx="346" cy="351" r="16" fill="#ff00ff"/>
+  <path d="M178 111l42-34M388 173l47-14M117 305l-42 30" stroke="#ccff00" stroke-width="18" stroke-linecap="round"/>
+</svg>

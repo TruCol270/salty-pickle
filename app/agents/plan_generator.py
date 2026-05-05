@@ -197,6 +197,7 @@ For ultra races, include back-to-back long runs in later weeks.
             name=f"{race_name} Training",
             start_date=start_date,
             end_date=race_date,
+            workouts=[],
             goal_race_name=race_name,
             goal_race_date=race_date,
             goal_distance_km=race_distance_km,

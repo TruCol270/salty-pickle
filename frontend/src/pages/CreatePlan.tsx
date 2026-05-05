@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { api } from '../lib/api';
 import { Flag, Calendar, MapPin, Target, Loader2, Link as LinkIcon, Settings } from 'lucide-react';
 
@@ -44,6 +45,7 @@ export function CreatePlan() {
 
   const [raceAnalysis, setRaceAnalysis] = useState<RaceAnalysis | null>(null);
   const [analyzingUrl, setAnalyzingUrl] = useState(false);
+  const [createPlanError, setCreatePlanError] = useState<string | null>(null);
 
   const analyzeUrl = useMutation({
     mutationFn: async (url: string) => {
@@ -66,6 +68,9 @@ export function CreatePlan() {
     onError: () => {
       setRaceAnalysis(null);
     },
+    onSettled: () => {
+      setAnalyzingUrl(false);
+    },
   });
 
   const createPlan = useMutation({
@@ -84,6 +89,12 @@ export function CreatePlan() {
     onSuccess: (data) => {
       navigate(`/plans/${data.plan_id}`);
     },
+    onError: (e) => {
+      const message = isAxiosError(e)
+        ? e.response?.data?.error?.message ?? e.message
+        : 'Failed to generate plan. Please try again.';
+      setCreatePlanError(message);
+    },
   });
 
   const handleAnalyzeUrl = () => {
@@ -95,6 +106,7 @@ export function CreatePlan() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setCreatePlanError(null);
     createPlan.mutate(formData);
   };
 
@@ -257,9 +269,10 @@ export function CreatePlan() {
 
             <div className="bg-indigo-50 rounded-lg p-4 text-sm text-indigo-800">
               <p>
-                <strong>How it works:</strong> We'll analyze your Strava history, generate a personalized
-                training plan using AI, and automatically sync workouts to your Google Calendar.
-                The plan will adapt based on your actual performance.
+                <strong>Private beta:</strong> We'll use your Strava-connected
+                profile and these race details to generate a personalized AI
+                training plan. Google Calendar and Whoop are optional
+                integrations you can connect later.
               </p>
             </div>
 
@@ -283,7 +296,7 @@ export function CreatePlan() {
 
             {createPlan.isError && (
               <div className="bg-red-50 text-red-600 p-4 rounded-lg text-sm">
-                Failed to generate plan. Please try again. (Check if OpenAI API key has quota)
+                {createPlanError ?? 'Failed to generate plan. Please try again.'}
               </div>
             )}
           </form>

@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.deps import get_current_user
@@ -20,8 +21,10 @@ from app.schemas.plan import (
 from app.services.plan_engine import PlanEngineService
 from app.agents.adjustment_agent import WorkoutAdjustmentAgent
 from app.agents.plan_generator import PlanGeneratorAgent
+from app.config import get_settings
 
 router = APIRouter()
+settings = get_settings()
 
 
 @router.get("", response_model=list[TrainingPlanResponse])
@@ -128,8 +131,13 @@ async def trigger_adjustment(
 
     if adjustment_data.trigger == "missed":
         result = await db.execute(
-            select(PlannedWorkout).where(
-                PlannedWorkout.id == adjustment_data.workout_id
+            select(PlannedWorkout)
+            .join(TrainingPlan)
+            .options(selectinload(PlannedWorkout.plan))
+            .where(
+                PlannedWorkout.id == adjustment_data.workout_id,
+                TrainingPlan.id == plan_id,
+                TrainingPlan.user_id == user.id,
             )
         )
         workout = result.scalar_one_or_none()
@@ -141,8 +149,13 @@ async def trigger_adjustment(
 
     elif adjustment_data.trigger == "low_recovery":
         result = await db.execute(
-            select(PlannedWorkout).where(
-                PlannedWorkout.id == adjustment_data.workout_id
+            select(PlannedWorkout)
+            .join(TrainingPlan)
+            .options(selectinload(PlannedWorkout.plan))
+            .where(
+                PlannedWorkout.id == adjustment_data.workout_id,
+                TrainingPlan.id == plan_id,
+                TrainingPlan.user_id == user.id,
             )
         )
         workout = result.scalar_one_or_none()
@@ -178,6 +191,11 @@ async def generate_plan_with_ai(
         raise HTTPException(
             status_code=400,
             detail="Please connect Strava first to generate a personalized plan",
+        )
+    if not settings.openai_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="AI plan generation is not configured. Set OPENAI_API_KEY before private beta launch.",
         )
 
     agent = PlanGeneratorAgent(db)

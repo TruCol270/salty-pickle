@@ -302,10 +302,15 @@ def _redirect_page_html(dashboard_href: str) -> str:
 # Built UI lives in app/static next to this module (see Dockerfile: COPY dist -> ./app/static).
 _static_dir = Path(__file__).resolve().parent / "static"
 _assets_dir = _static_dir / "assets"
+_icons_dir = _static_dir / "icons"
 if _assets_dir.is_dir():
     app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="static-assets")
 else:
     logger.warning("Vite assets directory missing at %s — JS/CSS will 404", _assets_dir)
+if _icons_dir.is_dir():
+    app.mount("/icons", StaticFiles(directory=str(_icons_dir)), name="static-icons")
+else:
+    logger.warning("PWA icons directory missing at %s — install icon will 404", _icons_dir)
 
 
 def _spa_index():
@@ -326,6 +331,22 @@ def _spa_index():
 async def spa_root():
     """`/{path:path}` does not match the bare `/` in Starlette; serve index explicitly."""
     return _spa_index()
+
+
+@app.get("/manifest.webmanifest")
+async def pwa_manifest():
+    manifest = _static_dir / "manifest.webmanifest"
+    if manifest.exists():
+        return FileResponse(str(manifest), media_type="application/manifest+json")
+    raise HTTPException(status_code=404, detail="PWA manifest not found")
+
+
+@app.get("/sw.js")
+async def service_worker():
+    service_worker_file = _static_dir / "sw.js"
+    if service_worker_file.exists():
+        return FileResponse(str(service_worker_file), media_type="text/javascript")
+    raise HTTPException(status_code=404, detail="Service worker not found")
 
 
 @app.get("/{full_path:path}")

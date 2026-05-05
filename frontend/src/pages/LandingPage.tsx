@@ -1,8 +1,8 @@
-import { Activity, Heart, Calendar, Zap } from 'lucide-react';
+import { Activity, Smartphone, ShieldCheck, Zap } from 'lucide-react';
 import { buildOAuthAuthorizeUrl } from '../lib/oauth';
 
 export function LandingPage() {
-  const connectUrl = buildOAuthAuthorizeUrl('strava', '/integrations');
+  const connectUrl = buildOAuthAuthorizeUrl('strava', '/create');
 
   return (
     <div className="min-h-screen bg-grunge-black flex flex-col items-center justify-center px-6 text-center">
@@ -11,15 +11,15 @@ export function LandingPage() {
           SALTY PICKLE
         </h1>
         <p className="text-xl text-gray-300">
-          AI-powered training plans that adapt to your body. Connect Strava,
-          Whoop, and Google Calendar — and let the plan come to you.
+          Private beta training plans for runners. Connect Strava, generate an
+          AI plan, and keep the app on your phone home screen.
         </p>
 
         <div className="grid grid-cols-2 gap-4 text-left max-w-md mx-auto">
-          <Feature icon={<Activity className="w-5 h-5" />} text="Strava sync" />
-          <Feature icon={<Heart className="w-5 h-5" />} text="Whoop recovery" />
-          <Feature icon={<Calendar className="w-5 h-5" />} text="Calendar push" />
+          <Feature icon={<Activity className="w-5 h-5" />} text="Strava login" />
           <Feature icon={<Zap className="w-5 h-5" />} text="AI plan gen" />
+          <Feature icon={<Smartphone className="w-5 h-5" />} text="Phone install" />
+          <Feature icon={<ShieldCheck className="w-5 h-5" />} text="Private beta" />
         </div>
 
         <a

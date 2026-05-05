@@ -38,7 +38,7 @@ export function PlanEditor() {
 
   const syncMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.post(`/api/v1/calendar/sync`, { plan_id: id });
+      const response = await api.post(`/api/v1/calendar/sync?plan_id=${id}`);
       return response.data;
     },
     onSuccess: () => {
