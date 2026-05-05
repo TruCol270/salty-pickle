@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Activity, MapPin, Clock, Zap, TrendingUp } from 'lucide-react';
 import { api } from '../lib/api';
 import { LoadingSpinner } from '../components/LoadingSpinner';

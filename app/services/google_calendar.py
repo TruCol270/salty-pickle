@@ -7,10 +7,10 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from sqlalchemy.ext.asyncio import AsyncSession
 
-os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
-
 from app.config import get_settings
 from app.models import User
+
+os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
 
 settings = get_settings()
 

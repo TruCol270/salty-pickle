@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom';
+import { FeedbackButton } from './FeedbackButton';
 import { Navigation } from './Navigation';
 
 export function Layout() {
@@ -8,6 +9,7 @@ export function Layout() {
       <main className="flex-1 overflow-auto px-4 py-6 md:px-8">
         <div className="mx-auto max-w-7xl">
           <Outlet />
+          <FeedbackButton />
         </div>
       </main>
     </div>

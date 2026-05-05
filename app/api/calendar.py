@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import User
-from app.schemas.calendar import CalendarSyncResponse, CalendarEventResponse
+from app.schemas.calendar import CalendarSyncResponse
 from app.services.calendar_sync import CalendarSyncService
 
 router = APIRouter()

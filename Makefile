@@ -1,4 +1,4 @@
-.PHONY: dev build test lint migrate db-reset
+.PHONY: dev build test lint migrate seed-beta db-reset
 
 dev:
 	docker-compose up
@@ -14,6 +14,9 @@ lint:
 
 migrate:
 	docker-compose run api alembic upgrade head
+
+seed-beta:
+	docker-compose run api python -m app.seed
 
 db-reset:
 	docker-compose run api alembic downgrade base && docker-compose run api alembic upgrade head

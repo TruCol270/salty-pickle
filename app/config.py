@@ -69,6 +69,13 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24 * 7
 
     debug: bool = False
+    environment: str = "development"
+    release: str = "local"
+    log_level: str = "DEBUG"
+    sentry_dsn: str = ""
+    rate_limit_general: str = "100/minute"
+    rate_limit_auth: str = "10/minute"
+    rate_limit_feedback: str = "5/hour"
     app_public_url: str = "http://localhost:5173"
     api_public_url: str = "http://localhost:8080"
     # Must stay a plain str so EnvSettingsSource does not require JSON for list fields.

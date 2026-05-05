@@ -32,6 +32,10 @@ export function LandingPage() {
 
         <p className="text-sm text-gray-500">
           By signing in you agree to our{' '}
+          <a href="/terms" className="underline hover:text-gray-300">
+            Terms of Service
+          </a>
+          {' '}and{' '}
           <a href="/privacy" className="underline hover:text-gray-300">
             Privacy Policy
           </a>

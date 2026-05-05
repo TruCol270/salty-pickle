@@ -7,7 +7,7 @@ from sqlalchemy import select, desc
 from app.database import get_db
 from app.deps import get_current_user
 from app.limiter import limiter
-from app.models import User, TrainingPlan, PlanStatus, PlannedWorkout
+from app.models import User, TrainingPlan, PlannedWorkout
 from app.schemas.plan import (
     TrainingPlanCreate,
     TrainingPlanUpdate,

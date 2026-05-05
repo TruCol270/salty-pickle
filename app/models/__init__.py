@@ -11,6 +11,7 @@ from app.models.integration import (
     SyncRunStatus,
 )
 from app.models.analytics_event import AnalyticsEvent, PlanPerformanceSnapshot
+from app.models.feedback import Feedback
 
 __all__ = [
     "User",
@@ -30,4 +31,5 @@ __all__ = [
     "SyncRunStatus",
     "AnalyticsEvent",
     "PlanPerformanceSnapshot",
+    "Feedback",
 ]

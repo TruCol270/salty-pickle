@@ -17,7 +17,7 @@ interface IntegrationCardProps {
   onConnect?: () => void;
   isConnecting?: boolean;
   color: string;
-  details?: string;
+  details?: string | null;
 }
 
 function IntegrationCard({

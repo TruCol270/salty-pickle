@@ -169,7 +169,6 @@ async def whoop_webhook(
 
 async def _handle_recovery_event(payload: dict, user: User, db: AsyncSession):
     """Process a recovery.updated event and adjust training plan."""
-    from app.services.performance_analyzer import PerformanceAnalyzer
 
     service = WhoopService(db)
     recovery_data = service.parse_recovery_event(payload)
@@ -284,8 +283,6 @@ async def _handle_sleep_event(payload: dict, user: User, db: AsyncSession):
     data = payload.get("data", {})
     score = data.get("score", {})
     sleep_efficiency = score.get("sleep_efficiency_percentage", 0)
-    sleep_hours = (data.get("end") or 0) - (data.get("start") or 0)
-
     logger.info(
         "Sleep event for user %s: %.0f%% efficiency", user.id, sleep_efficiency
     )

@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta
-from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
-from app.models import User, CompletedWorkout, TrainingPlan
+from app.models import CompletedWorkout, TrainingPlan
 
 
 class AnalyticsService:

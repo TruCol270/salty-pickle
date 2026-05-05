@@ -53,6 +53,8 @@ coverage.xml
 
 # Environments
 .env
+.env.local
+.env.*.local
 .venv
 env/
 venv/
@@ -84,3 +86,5 @@ dmypy.json
 
 # Frontend (npm)
 node_modules/
+
+.devfleet-worktrees/

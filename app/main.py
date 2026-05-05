@@ -2,7 +2,6 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-import structlog
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
@@ -12,10 +11,11 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
-from app.config import get_settings, parse_allowed_origins_to_list
+from app.config import get_settings
 from app.database import init_db, AsyncSessionLocal
 from app.exceptions import SaltyPickleError, ResourceNotFoundError
 from app.limiter import limiter
+from app.observability import configure_logging, init_sentry, request_logger
 from app.api import (
     auth,
     workouts,
@@ -26,6 +26,7 @@ from app.api import (
     races,
     whoop,
     integrations,
+    feedback,
 )
 from app.scheduler.jobs import setup_scheduler, shutdown_scheduler
 
@@ -33,20 +34,11 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
-structlog.configure(
-    processors=[
-        structlog.processors.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.processors.JSONRenderer(),
-    ],
-    wrapper_class=structlog.stdlib.BoundLogger,
-    logger_factory=structlog.stdlib.LoggerFactory(),
-)
-logging.basicConfig(
-    format="%(message)s",
-    level=logging.DEBUG if settings.debug else logging.INFO,
+configure_logging(settings.log_level, settings.debug)
+init_sentry(
+    dsn=settings.sentry_dsn,
+    environment=settings.environment,
+    release=settings.release,
 )
 
 
@@ -83,6 +75,7 @@ app.add_middleware(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.middleware("http")(request_logger())
 
 
 @app.middleware("http")
@@ -155,6 +148,7 @@ app.include_router(whoop.router, prefix="/api/v1/whoop", tags=["whoop"])
 app.include_router(
     integrations.router, prefix="/api/v1/integrations", tags=["integrations"]
 )
+app.include_router(feedback.router, prefix="/api", tags=["feedback"])
 
 
 @app.exception_handler(SaltyPickleError)

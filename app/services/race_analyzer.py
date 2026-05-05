@@ -1,6 +1,5 @@
 import re
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime
 from urllib.parse import urlparse
 
 import httpx
@@ -70,7 +69,7 @@ class RaceAnalyzer:
                 response.raise_for_status()
 
                 return self._parse_html(response.text, url)
-        except Exception as e:
+        except Exception:
             return self._extract_from_url_path(url)
 
     def _parse_html(self, html: str, url: str) -> dict:
@@ -120,7 +119,7 @@ class RaceAnalyzer:
             if match:
                 try:
                     result["race_date"] = self._parse_date(match.group())
-                except:
+                except ValueError:
                     pass
 
         distance_patterns = [
@@ -242,7 +241,7 @@ class RaceAnalyzer:
 
         try:
             return datetime.fromisoformat(date_str[:10])
-        except:
+        except ValueError:
             pass
 
         return datetime(2026, 6, 1)

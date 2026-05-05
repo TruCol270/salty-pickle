@@ -1,5 +1,7 @@
 # Salty Pickle 🐟
 
+[![CI](https://github.com/TruCol270/salty-pickle/actions/workflows/ci.yml/badge.svg)](https://github.com/TruCol270/salty-pickle/actions/workflows/ci.yml)
+
 An AI-powered ultra/trail running training plan scheduler that automatically syncs with Strava and Google Calendar.
 
 ## Features
@@ -189,3 +191,5 @@ MIT
 2. Create a feature branch
 3. Make changes and test
 4. Push to GitHub
+
+CI runs on every branch push and on pull requests targeting `main`.

@@ -1,12 +1,11 @@
 from datetime import datetime, timedelta
-from typing import Optional
 import json
 
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.models import User, TrainingPlan, PlannedWorkout, PlanStatus
+from app.models import User, TrainingPlan, PlannedWorkout
 from app.services.plan_engine import PlanEngineService
 from app.services.calendar_sync import CalendarSyncService
 from app.services.workout_sync import WorkoutSyncService

@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
@@ -36,7 +35,7 @@ class WorkoutAdjustmentAgent:
                     TrainingPlan.status == PlanStatus.ACTIVE,
                     PlannedWorkout.scheduled_date >= yesterday,
                     PlannedWorkout.scheduled_date < datetime.utcnow(),
-                    PlannedWorkout.completed_workout == None,
+                    PlannedWorkout.completed_workout.is_(None),
                 )
             )
         )

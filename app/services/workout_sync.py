@@ -8,7 +8,6 @@ from sqlalchemy import select, and_
 from app.models import (
     User,
     CompletedWorkout,
-    PlannedWorkout,
     WorkoutSource,
     StravaSyncRun,
     SyncRunStatus,

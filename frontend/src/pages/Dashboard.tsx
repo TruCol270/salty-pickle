@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Calendar, TrendingUp, Activity, Plus, Flag } from 'lucide-react';
+import { Calendar, TrendingUp, Activity, Plus } from 'lucide-react';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { api } from '../lib/api';
 

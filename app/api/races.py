@@ -3,10 +3,8 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.database import get_db
-from app.models import User
 from app.services.race_analyzer import RaceAnalyzer
 
 router = APIRouter()
@@ -32,7 +30,7 @@ async def analyze_race_url(
                 race_info["race_date"] = datetime.fromisoformat(
                     race_date.replace("Z", "+00:00")
                 )
-            except:
+            except ValueError:
                 pass
 
         advice = analyzer.get_training_advice(race_info)

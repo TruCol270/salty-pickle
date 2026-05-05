@@ -11,6 +11,7 @@ import { StravaPage } from './pages/StravaPage';
 import { WhoopPage } from './pages/WhoopPage';
 import { IntegrationsPage } from './pages/IntegrationsPage';
 import { LandingPage } from './pages/LandingPage';
+import { PrivacyPage, TermsPage } from './pages/LegalPages';
 import type { ReactNode } from 'react';
 
 const queryClient = new QueryClient({
@@ -38,6 +39,8 @@ export default function App() {
           <ErrorBoundary>
             <Routes>
               <Route path="/login" element={<LandingPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
               <Route
                 element={
                   <RequireAuth>

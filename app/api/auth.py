@@ -465,7 +465,7 @@ async def provider_callbacks():
 
 
 @router.post("/token/bootstrap", response_model=TokenResponse)
-@limiter.limit("5/minute")
+@limiter.limit(settings.rate_limit_auth)
 async def bootstrap_session_token(
     request: Request,
     x_bootstrap_key: str | None = Header(default=None, alias="X-Bootstrap-Key"),
